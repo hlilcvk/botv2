@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PROPTREX | Bot Admin Panel</title>
+    <style>
+        :root {
+            --bg: #04070d;
+            --card: #0a1220;
+            --border: #142238;
+            --text: #e8f4ff;
+            --text-dim: #8cc63f;
+            --primary: #00e5ff;
+            --btn-hover: #00c4db;
+            --error: #ff2d55;
+            --success: #00ff88;
+            --long: #0ecb81;
+            --short: #f6465d;
+            --gold: #f0b90b;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        /* ── Layout ── */
+        .page-wrap {
+            display: flex;
+            gap: 20px;
+            padding: 30px 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* Left: admin panel */
+        .admin-col {
+            width: 620px;
+            min-width: 300px;
+            flex-shrink: 0;
+        }
+
+        /* Right: signals feed */
+        .signals-col {
+            flex: 1;
+            min-width: 0;
+        }
+
+        /* ── Login Overlay ── */
+        #loginOverlay {
+            position: fixed;
+            inset: 0;
+            background: var(--bg);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .login-box {
+            background: var(--card);
+            padding: 40px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            text-align: center;
+            width: 320px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.6);
+        }
+
+        .login-box h1 {
+            font-size: 22px;
+            color: var(--primary);
+            margin-bottom: 20px;
+            letter-spacing: 1px;
+        }
+
+        /* ── Panel ── */
+        .panel {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 28px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+        }
+
+        h1 {
+            font-size: 20px;
+            color: var(--primary);
+            font-weight: 800;
+            letter-spacing: 1px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 14px;
+            margin-bottom: 16px;
+        }
+
+        h2 {
+            font-size: 13px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 7px;
+            margin: 22px 0 12px;
+        }
+
+        .form-group { margin-bottom: 13px; }
+
+        label {
+            display: block;
+            margin-bottom: 4px;
+            font-size: 12px;
+            color: #a8c8e0;
+        }
+
+        input[type="text"],
+        input[type="password"],
+        input[type="number"],
+        select {
+            width: 100%;
+            padding: 9px 11px;
+            background: #0f1c2e;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            color: var(--text);
+            font-family: monospace;
+            font-size: 13px;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+        button.save-btn {
+            background: var(--primary);
+            color: #000;
+            border: none;
+            padding: 12px;
+            cursor: pointer;
+            width: 100%;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 14px;
+            margin-top: 18px;
+            transition: background .2s;
+        }
+        button.save-btn:hover { background: var(--btn-hover); }
+
+        .status-msg {
+            margin-top: 12px;
+            padding: 9px;
+            border-radius: 4px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 13px;
+            display: none;
+        }
+        .status-msg.success { background: rgba(0,255,136,.08); color: var(--success); border: 1px solid var(--success); display: block; }
+        .status-msg.error   { background: rgba(255,45,85,.08); color: var(--error);   border: 1px solid var(--error);   display: block; }
+
+        /* ── Signals Feed ── */
+        .signals-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 14px;
+        }
+        .signals-header h1 { border: none; padding: 0; margin: 0; }
+
+        .ws-dot {
+            width: 9px; height: 9px;
+            border-radius: 50%;
+            background: #555;
+            display: inline-block;
+            margin-right: 6px;
+            transition: background .4s;
+        }
+        .ws-dot.live { background: var(--success); box-shadow: 0 0 6px var(--success); }
+
+        #signalList {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            max-height: calc(100vh - 140px);
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+
+        #signalList::-webkit-scrollbar { width: 5px; }
+        #signalList::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+        .sig-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            animation: slideIn .3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        .sig-card::before {
+            content: '';
+            position: absolute;
+            left: 0; top: 0; bottom: 0;
+            width: 4px;
+        }
+        .sig-card.long::before  { background: var(--long);  }
+        .sig-card.short::before { background: var(--short); }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(-8px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .sig-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .sig-symbol {
+            font-size: 16px;
+            font-weight: 800;
+            color: var(--gold);
+        }
+
+        .sig-badges {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .badge {
+            font-size: 11px;
+            font-weight: 700;
+            padding: 2px 9px;
+            border-radius: 10px;
+        }
+        .badge.long  { background: rgba(14,203,129,.15); color: var(--long);  }
+        .badge.short { background: rgba(246,70,93,.15);  color: var(--short); }
+        .badge.score { background: rgba(240,185,11,.12); color: var(--gold);  }
+        .badge.exch  { background: rgba(255,255,255,.06); color: #aaa; }
+        .badge.ref   { background: rgba(0,229,255,.10); color: var(--primary); font-size: 10px; }
+
+        .sig-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .sig-cell {
+            background: rgba(255,255,255,.03);
+            border-radius: 5px;
+            padding: 7px 10px;
+        }
+
+        .sig-cell .label {
+            font-size: 10px;
+            color: #566a7f;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+            margin-bottom: 3px;
+        }
+
+        .sig-cell .val {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--text);
+            font-family: monospace;
+        }
+
+        .sig-why {
+            font-size: 11px;
+            color: #6b8da8;
+            border-top: 1px solid var(--border);
+            padding-top: 8px;
+            margin-top: 4px;
+            line-height: 1.6;
+        }
+
+        .sig-meta {
+            font-size: 10px;
+            color: #3d5168;
+            margin-top: 6px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #3d5168;
+        }
+        .empty-state .icon { font-size: 40px; margin-bottom: 10px; }
+        .empty-state p { font-size: 13px; line-height: 1.7; }
+
+        /* Responsive */
+        @media (max-width: 900px) {
+            .page-wrap { flex-direction: column; padding: 16px; }
+            .admin-col { width: 100%; }
+            #signalList { max-height: 600px; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Login overlay -->
+<div id="loginOverlay">
+    <div class="login-box">
+        <h1>PROPTREX</h1>
+        <p style="font-size:12px;color:#566a7f;margin-bottom:20px;">Admin Girişi</p>
+        <input type="password" id="adminPassword" placeholder="Şifre"
+               onkeydown="if(event.key==='Enter') tryLogin()"
+               style="margin-bottom:12px;">
+        <button class="save-btn" onclick="tryLogin()">Giriş Yap</button>
+        <div id="loginError" style="color:var(--error);margin-top:12px;display:none;font-size:13px;">Şifre Hatalı!</div>
+    </div>
+</div>
+
+<!-- Main layout (hidden until logged in) -->
+<div id="mainWrap" style="display:none;">
+    <div class="page-wrap">
+
+        <!-- ── LEFT: Admin Config ── -->
+        <div class="admin-col">
+            <div class="panel">
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <h1 style="border:none;padding:0;margin:0;">PROPTREX BOT ADMIN</h1>
+                    <a href="/platform" target="_blank"
+                       style="background:#8cc63f;color:#000;padding:7px 14px;text-decoration:none;
+                              border-radius:4px;font-weight:bold;font-size:12px;white-space:nowrap;flex-shrink:0;">
+                        Platform ➔
+                    </a>
+                </div>
+                <p style="font-size:12px;color:#566a7f;margin-bottom:4px;margin-top:14px;border-top:1px solid var(--border);padding-top:12px;">
+                    Multi-exchange sinyal motoru yönetim paneli. Ayarlar anlık olarak aktif olur.
+                </p>
+
+                <div id="statusMessage" class="status-msg"></div>
+
+                <form id="configForm">
+                    <input type="hidden" id="_admin_password" value="proptrex2026">
+
+                    <h2>Telegram</h2>
+                    <div class="form-group">
+                        <label>Bot Token</label>
+                        <input type="password" id="tg_token" placeholder="123456789:ABC...">
+                    </div>
+                    <div class="form-group">
+                        <label>Kanal / Grup ID</label>
+                        <input type="text" id="tg_chat_id" placeholder="@kanal_adi veya -100123...">
+                    </div>
+                    <div class="form-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="tg_enabled">
+                            <span>Telegram Bildirimlerini Aktif Et</span>
+                        </label>
+                    </div>
+
+                    <h2>X (Twitter)</h2>
+                    <div class="row2">
+                        <div class="form-group">
+                            <label>API Key</label>
+                            <input type="password" id="tw_api_key">
+                        </div>
+                        <div class="form-group">
+                            <label>API Key Secret</label>
+                            <input type="password" id="tw_api_secret">
+                        </div>
+                    </div>
+                    <div class="row2">
+                        <div class="form-group">
+                            <label>Access Token</label>
+                            <input type="password" id="tw_access_token">
+                        </div>
+                        <div class="form-group">
+                            <label>Access Token Secret</label>
+                            <input type="password" id="tw_access_secret">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="tw_enabled">
+                            <span>X (Twitter) Paylaşımlarını Aktif Et</span>
+                        </label>
+                    </div>
+
+                    <h2>Referans Linkleri</h2>
+                    <div class="form-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="ref_enabled">
+                            <span>Referans Linklerini Mesajlara Ekle</span>
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label>Her kaç sinyalde bir referans eklensin? (0 = kapalı)</label>
+                        <input type="number" id="ref_every_n_signals" min="0" max="100" value="3" style="max-width:100px;">
+                    </div>
+                    <div class="form-group">
+                        <label>Binance</label>
+                        <input type="text" id="ref_binance" placeholder="https://www.binance.com/...">
+                    </div>
+                    <div class="form-group">
+                        <label>MEXC</label>
+                        <input type="text" id="ref_mexc" placeholder="https://promote.mexc.fm/...">
+                    </div>
+                    <div class="form-group">
+                        <label>Gate.io</label>
+                        <input type="text" id="ref_gate" placeholder="https://www.gate.io/...">
+                    </div>
+                    <div class="form-group">
+                        <label>KuCoin</label>
+                        <input type="text" id="ref_kucoin" placeholder="https://www.kucoin.com/...">
+                    </div>
+                    <div class="form-group">
+                        <label>OKX</label>
+                        <input type="text" id="ref_okx" placeholder="https://www.okx.com/...">
+                    </div>
+
+                    <h2>Platform / Tanıtım</h2>
+                    <div class="form-group">
+                        <label>Platform URL (mesajlardaki bağlantı)</label>
+                        <input type="text" id="platform_url" placeholder="https://panel.proptrex.com.tr">
+                    </div>
+                    <div class="form-group">
+                        <label>Tanıtım Linki (tüm mesajların altına eklenir)</label>
+                        <input type="text" id="promo_link" placeholder="https://proptrex.com.tr">
+                    </div>
+                    <div class="form-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="promo_enabled">
+                            <span>Tanıtım Metnini Aktif Et</span>
+                        </label>
+                    </div>
+
+                    <h2>Sosyal Veri Kaynakları</h2>
+                    <div class="form-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="square_enabled" checked>
+                            <span>Binance Square Gönderilerini Tara</span>
+                        </label>
+                    </div>
+
+                    <h2>Tarama Ayarları</h2>
+                    <div class="row2">
+                        <div class="form-group">
+                            <label>Tarama Aralığı (saniye)</label>
+                            <input type="number" id="scan_interval_seconds" min="30" max="3600" value="60">
+                        </div>
+                        <div class="form-group">
+                            <label>Zaman Dilimi (timeframe)</label>
+                            <select id="timeframe">
+                                <option value="5m">5m</option>
+                                <option value="15m" selected>15m</option>
+                                <option value="30m">30m</option>
+                                <option value="1h">1h</option>
+                                <option value="4h">4h</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row2">
+                        <div class="form-group">
+                            <label>Min. Hacim / Mum (USD)</label>
+                            <input type="number" id="min_volume_usd" min="1000" value="10000">
+                        </div>
+                        <div class="form-group">
+                            <label>Min. Fırsat Skoru (0-100)</label>
+                            <input type="number" id="min_opportunity_score" min="0" max="100" step="1" value="55">
+                        </div>
+                    </div>
+                    <div class="row2">
+                        <div class="form-group">
+                            <label>Scan Başına Sinyal Sayısı</label>
+                            <input type="number" id="signals_per_scan" min="1" max="20" value="5">
+                        </div>
+                        <div class="form-group"></div>
+                    </div>
+                    <div class="form-group">
+                        <label>Hariç Tutulan Semboller (virgülle ayrılmış)</label>
+                        <input type="text" id="exclude_symbols" placeholder="USDC,PAXG,XAUT,EUR,GOLD...">
+                    </div>
+                    <div class="row2">
+                        <div class="form-group">
+                            <label>Mum Sayısı (candle_limit)</label>
+                            <input type="number" id="candle_limit" min="500" max="1500" value="500">
+                        </div>
+                        <div class="form-group"></div>
+                    </div>
+                    <div class="row2">
+                        <div class="form-group">
+                            <label>Top N Sembol (dinamik tarama)</label>
+                            <input type="number" id="top_n_symbols" min="10" max="500" value="100">
+                        </div>
+                        <div class="form-group" style="display:flex;align-items:flex-end;padding-bottom:4px;">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="dynamic_scan" checked>
+                                <span>Dinamik Tarama</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Borsalar (virgülle ayrılmış: binance,mexc,gateio,kucoin,okx)</label>
+                        <input type="text" id="exchanges" placeholder="binance,mexc,gateio,kucoin,okx">
+                    </div>
+
+                    <button type="submit" class="save-btn">Ayarları Kaydet</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- ── RIGHT: Live Signals Feed ── -->
+        <div class="signals-col">
+            <div class="signals-header">
+                <h1 style="color:var(--primary);font-size:18px;font-weight:800;">
+                    <span class="ws-dot" id="wsDot"></span>CANLI SİNYALLER
+                </h1>
+                <span id="signalCount" style="font-size:12px;color:#566a7f;"></span>
+            </div>
+
+            <div id="signalList">
+                <div class="empty-state">
+                    <div class="icon">📡</div>
+                    <p>Bot başlatıldıktan sonra TRADEABLE sinyaller burada görünecek.<br>
+                    Tarama her <span id="intervalHint">60</span> saniyede bir yapılır.</p>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+const API = "";
+
+// ── DOM helpers (module-level) ──────────────────────────────────────────
+const setVal = (id, v) => { const el = document.getElementById(id); if (el) el.value = v ?? ""; };
+const setChk = (id, v) => { const el = document.getElementById(id); if (el) el.checked = !!v; };
+const getVal = id => document.getElementById(id).value;
+const getChk = id => document.getElementById(id).checked;
+const getNum = id => Number(document.getElementById(id).value);
+
+// ── Login ──────────────────────────────────────────────────────────────
+async function tryLogin() {
+    const pwd = document.getElementById('adminPassword').value;
+    try {
+        const res = await fetch(`${API}/api/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password: pwd })
+        });
+        const data = await res.json();
+        if (data.status === 'success') {
+            document.getElementById('loginOverlay').style.display = 'none';
+            document.getElementById('mainWrap').style.display = 'block';
+            loadSettings();
+            connectWebSocket();
+            loadRecentSignals();
+        } else {
+            document.getElementById('loginError').style.display = 'block';
+        }
+    } catch (e) {
+        document.getElementById('loginError').innerText = "Bağlantı Hatası!";
+        document.getElementById('loginError').style.display = 'block';
+    }
+}
+
+// ── Load Settings ──────────────────────────────────────────────────────
+async function loadSettings() {
+    try {
+        const res = await fetch(`${API}/api/config`);
+        const d = await res.json();
+
+        setVal('_admin_password', d.admin_password || 'proptrex2026');
+
+        setVal('tg_token', d.tg_token);
+        setVal('tg_chat_id', d.tg_chat_id);
+        setChk('tg_enabled', d.tg_enabled);
+
+        setVal('tw_api_key', d.tw_api_key);
+        setVal('tw_api_secret', d.tw_api_secret);
+        setVal('tw_access_token', d.tw_access_token);
+        setVal('tw_access_secret', d.tw_access_secret);
+        setChk('tw_enabled', d.tw_enabled);
+
+        setChk('ref_enabled', d.ref_enabled ?? true);
+        setVal('ref_every_n_signals', d.ref_every_n_signals ?? 3);
+        setVal('ref_binance', d.ref_binance);
+        setVal('ref_mexc', d.ref_mexc);
+        setVal('ref_gate', d.ref_gate);
+        setVal('ref_kucoin', d.ref_kucoin);
+        setVal('ref_okx', d.ref_okx);
+
+        setVal('platform_url', d.platform_url);
+        setVal('promo_link', d.promo_link);
+        setChk('promo_enabled', d.promo_enabled ?? true);
+
+        setChk('square_enabled', d.square_enabled ?? true);
+        setVal('scan_interval_seconds', d.scan_interval_seconds ?? 60);
+        setVal('timeframe', d.timeframe ?? '15m');
+        setVal('min_volume_usd', d.min_volume_usd ?? 10000);
+        setVal('min_opportunity_score', d.min_opportunity_score ?? 55);
+        setVal('signals_per_scan', d.signals_per_scan ?? 5);
+        setVal('exclude_symbols', d.exclude_symbols ?? 'USDC,USDT,FDUSD,TUSD,DAI,BUSD,USD1,XUSD,PAXG,XAUT,EUR,GBP,GOLD');
+        setVal('candle_limit', d.candle_limit ?? 500);
+        setVal('top_n_symbols', d.top_n_symbols ?? 100);
+        setChk('dynamic_scan', d.dynamic_scan ?? true);
+        setVal('exchanges', d.exchanges ?? 'binance,mexc,gateio,kucoin,okx');
+
+        document.getElementById('intervalHint').textContent = d.scan_interval_seconds ?? 60;
+
+    } catch(e) {
+        console.error("Config yüklenemedi:", e);
+    }
+}
+
+// ── Save Settings ──────────────────────────────────────────────────────
+document.getElementById('configForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const statusEl = document.getElementById('statusMessage');
+    statusEl.className = 'status-msg';
+    statusEl.innerText = "Kaydediliyor...";
+    statusEl.style.display = "block";
+
+    const config = {
+        admin_password: getVal('_admin_password') || 'proptrex2026',
+        tg_token: getVal('tg_token'),
+        tg_chat_id: getVal('tg_chat_id'),
+        tg_enabled: getChk('tg_enabled'),
+        tw_api_key: getVal('tw_api_key'),
+        tw_api_secret: getVal('tw_api_secret'),
+        tw_access_token: getVal('tw_access_token'),
+        tw_access_secret: getVal('tw_access_secret'),
+        tw_enabled: getChk('tw_enabled'),
+        ref_enabled: getChk('ref_enabled'),
+        ref_every_n_signals: getNum('ref_every_n_signals'),
+        ref_binance: getVal('ref_binance'),
+        ref_mexc: getVal('ref_mexc'),
+        ref_gate: getVal('ref_gate'),
+        ref_kucoin: getVal('ref_kucoin'),
+        ref_okx: getVal('ref_okx'),
+        platform_url: getVal('platform_url'),
+        promo_link: getVal('promo_link'),
+        promo_enabled: getChk('promo_enabled'),
+        scan_interval_seconds: getNum('scan_interval_seconds'),
+        timeframe: getVal('timeframe'),
+        candle_limit: getNum('candle_limit'),
+        min_volume_usd: getNum('min_volume_usd'),
+        min_opportunity_score: getNum('min_opportunity_score'),
+        signals_per_scan: getNum('signals_per_scan'),
+        exclude_symbols: getVal('exclude_symbols'),
+        top_n_symbols: getNum('top_n_symbols'),
+        dynamic_scan: getChk('dynamic_scan'),
+        exchanges: getVal('exchanges'),
+        square_enabled: getChk('square_enabled'),
+    };
+
+    try {
+        const res = await fetch(`${API}/api/config`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(config)
+        });
+        if (res.ok) {
+            statusEl.className = 'status-msg success';
+            statusEl.innerText = "Ayarlar kaydedildi! Bir sonraki tarama döngüsünde devreye girer.";
+            document.getElementById('intervalHint').textContent = config.scan_interval_seconds;
+        } else {
+            throw new Error("Sunucu hatası");
+        }
+    } catch(err) {
+        statusEl.className = 'status-msg error';
+        statusEl.innerText = "Kayıt hatası. API çalışıyor mu?";
+    }
+
+    setTimeout(() => { statusEl.style.display = 'none'; }, 5000);
+});
+
+// ── WebSocket ──────────────────────────────────────────────────────────
+let ws = null;
+let totalSignals = 0;
+
+function connectWebSocket() {
+    const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+    const wsUrl = `${proto}://${location.host}/ws/events`;
+    const dot = document.getElementById('wsDot');
+
+    function connect() {
+        ws = new WebSocket(wsUrl);
+
+        ws.onopen = () => {
+            dot.classList.add('live');
+        };
+
+        ws.onclose = () => {
+            dot.classList.remove('live');
+            setTimeout(connect, 5000);
+        };
+
+        ws.onerror = () => {
+            dot.classList.remove('live');
+        };
+
+        ws.onmessage = (ev) => {
+            const msg = JSON.parse(ev.data);
+            if (msg.type === 'hello') {
+                // Load signals already in memory
+                if (msg.recent_signals && msg.recent_signals.length > 0) {
+                    const list = document.getElementById('signalList');
+                    list.innerHTML = '';
+                    msg.recent_signals.forEach(s => appendSignalCard(s));
+                }
+            } else if (msg.type === 'signal') {
+                prependSignalCard(msg);
+            } else if (msg.type === 'lifecycle_update') {
+                showLifecycleToast(msg);
+            }
+        };
+    }
+
+    connect();
+}
+
+// ── Load recent signals on page open ──────────────────────────────────
+async function loadRecentSignals() {
+    try {
+        const res = await fetch(`${API}/api/signals`);
+        const data = await res.json();
+        if (data.signals && data.signals.length > 0) {
+            const list = document.getElementById('signalList');
+            list.innerHTML = '';
+            data.signals.forEach(s => appendSignalCard(s));
+            updateCount(data.signals.length);
+        }
+    } catch(e) {}
+}
+
+// ── Signal Card builders ───────────────────────────────────────────────
+function prependSignalCard(sig) {
+    const list = document.getElementById('signalList');
+    if (list.querySelector('.empty-state')) list.innerHTML = '';
+    const card = buildCard(sig);
+    list.insertBefore(card, list.firstChild);
+    totalSignals++;
+    updateCount(totalSignals);
+}
+
+function appendSignalCard(sig) {
+    const list = document.getElementById('signalList');
+    if (list.querySelector('.empty-state')) list.innerHTML = '';
+    list.appendChild(buildCard(sig));
+    totalSignals++;
+}
+
+function updateCount(n) {
+    document.getElementById('signalCount').textContent = `${n} sinyal`;
+}
+
+function buildCard(sig) {
+    const div = document.createElement('div');
+    const sideClass = sig.side === 'LONG' ? 'long' : 'short';
+    div.className = `sig-card ${sideClass}`;
+
+    const whyHtml = (sig.why_lines || []).slice(0, 3).map(w => `• ${w}`).join('<br>');
+    const refBadge = sig.has_referral ? '<span class="badge ref">+REF</span>' : '';
+
+    div.innerHTML = `
+      <div class="sig-top">
+        <span class="sig-symbol">${sig.symbol}</span>
+        <div class="sig-badges">
+          <span class="badge ${sideClass}">${sig.side}</span>
+          <span class="badge score">⚡ ${sig.opportunity_score}</span>
+          <span class="badge exch">${sig.exchange.toUpperCase()}</span>
+          ${refBadge}
+        </div>
+      </div>
+      <div class="sig-grid">
+        <div class="sig-cell">
+          <div class="label">Giriş Zonu</div>
+          <div class="val">${fmt(sig.entry_low)} – ${fmt(sig.entry_high)}</div>
+        </div>
+        <div class="sig-cell">
+          <div class="label">Stop Loss</div>
+          <div class="val" style="color:var(--short)">${fmt(sig.stop_loss)}</div>
+        </div>
+        <div class="sig-cell">
+          <div class="label">TP1 / TP2 / TP3</div>
+          <div class="val" style="color:var(--long);font-size:11px;">
+            ${fmt(sig.tp1)}<br>${fmt(sig.tp2)}<br>${fmt(sig.tp3)}
+          </div>
+        </div>
+        <div class="sig-cell">
+          <div class="label">Yapı / Zaman Dilimi</div>
+          <div class="val">${sig.structure_bias || '—'} / ${sig.timeframe}</div>
+        </div>
+        <div class="sig-cell">
+          <div class="label">Alıcı / Satıcı</div>
+          <div class="val">${sig.buyer_dominance}% / ${sig.seller_pressure}%</div>
+        </div>
+        <div class="sig-cell">
+          <div class="label">Sosyal / OB Skoru</div>
+          <div class="val">${sig.social_conviction} / ${sig.ob_score}</div>
+        </div>
+      </div>
+      ${whyHtml ? `<div class="sig-why">${whyHtml}</div>` : ''}
+      <div class="sig-meta">
+        <span>Sinyal #${sig.signal_number ?? '—'}</span>
+        <span>${sig.time || ''}</span>
+      </div>`;
+    return div;
+}
+
+function fmt(v) {
+    if (v === undefined || v === null) return '—';
+    const n = Number(v);
+    if (isNaN(n)) return v;
+    // Auto precision based on magnitude
+    if (n >= 1000) return n.toFixed(2);
+    if (n >= 1)    return n.toFixed(4);
+    return n.toFixed(6);
+}
+
+// ── Lifecycle toast ────────────────────────────────────────────────────
+function showLifecycleToast(msg) {
+    const t = document.createElement('div');
+    t.style.cssText = `
+      position:fixed; bottom:20px; right:20px; z-index:999;
+      background:#0a1220; border:1px solid #142238; border-radius:8px;
+      padding:14px 18px; font-size:13px; color:#e8f4ff;
+      box-shadow:0 4px 20px rgba(0,0,0,.5);
+      animation: slideIn .3s ease;
+    `;
+    const icon = msg.status.includes('TP') ? '🎯' : (msg.status === 'INVALIDATED' ? '🛑' : '📊');
+    t.innerHTML = `<b>${icon} ${msg.symbol}</b> — ${msg.status}<br>
+      <span style="color:#566a7f;font-size:11px;">Fiyat: ${msg.price}</span>`;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 6000);
+}
+</script>
+</body>
+</html>

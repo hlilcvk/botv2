@@ -1,0 +1,74 @@
+telegram:
+  token: "YOUR_TELEGRAM_BOT_TOKEN"
+  chat_id: "YOUR_CHAT_ID"
+
+runtime:
+  scan_interval_seconds: 45
+  default_timeframe: "1m"
+  candle_limit: 300
+  chart_bars: 140
+  min_volume_usd: 250000
+  dedup_cooldown_minutes: 45
+  enable_chart: true
+  send_radar: true
+  send_execution: true
+  send_management: true
+
+market:
+  exchanges:
+    - binance
+    - mexc
+    - gateio
+    - kucoin
+    - okx
+
+  # dynamic_scan: true → tüm borsalardaki USDT paritelerini hacme göre sırala, top_n_symbols al
+  # dynamic_scan: false → sadece aşağıdaki symbols listesini tara
+  dynamic_scan: true
+  top_n_symbols: 100          # her tarama döngüsünde kaç sembol alınsın
+  dynamic_min_volume_usd: 500000   # ticker'dan ön-filtre (OHLCV çekmeden önce)
+
+  # dynamic_scan: false iken kullanılacak sabit liste
+  symbols:
+    - "BTC/USDT"
+    - "ETH/USDT"
+    - "SOL/USDT"
+    - "XRP/USDT"
+    - "DOGE/USDT"
+    - "AVAX/USDT"
+    - "OP/USDT"
+    - "LINK/USDT"
+    - "ADA/USDT"
+    - "WIF/USDT"
+
+  context_symbols:
+    - "BTC/USDT"
+    - "ETH/USDT"
+    - "SOL/USDT"
+
+routing:
+  proptrex_url: "https://proptrex.com"
+  referral_links:
+    binance: "https://www.binance.com/activity/referral-entry/CPA?ref=CPA_00WPSCQYZA&utm_source=electron"
+    mexc: "https://promote.mexc.fm/r/KVaJdo8ook"
+    gateio: "https://app.mbm06.com/referral/earn-together/invite/U1dNV1pe?ref=U1dNV1pe&ref_type=103&utm_cmp=rXJBDjtJ&activity_id=1772462196891"
+    kucoin: "https://www.kucoin.com"
+
+social:
+  x_bearer_token: ""
+  square_enabled: true
+  x_limit: 20
+  square_limit: 20
+
+state:
+  backend: "json"   # json | redis
+  json_path: "signal_state.json"
+  redis_url: "redis://localhost:6379/0"
+
+portfolio:
+  account_size: 10000
+  risk_per_trade_pct: 1.0
+
+microflow:
+  enable_binance_trade_stream: false
+  stream_symbol: "BTC/USDT"
