@@ -43,7 +43,13 @@ class JsonStateStore:
         with open(self.path, "w", encoding="utf-8") as f:
             json.dump(raw, f, ensure_ascii=False, indent=2)
 
-    def allow(self, key: str, payload_hash: str, cooldown_minutes: int = 45) -> bool:
+    def allow(self, key: str, payload_hash: str, cooldown_minutes: int = 180) -> bool:
+        """Return True (and record the send) only if the cooldown has fully elapsed.
+
+        Hash changes are intentionally ignored as a bypass — ATR-derived levels
+        drift slightly on every scan and would otherwise re-trigger the signal
+        every cycle even for the same setup.
+        """
         now = datetime.now(timezone.utc)
         item = self.state.get(key)
 
@@ -62,17 +68,12 @@ class JsonStateStore:
             return True
 
         last_sent = datetime.fromisoformat(item.last_sent_at)
-        cooldown = timedelta(minutes=item.cooldown_minutes)
+        elapsed = now - last_sent
 
-        if item.payload_hash != payload_hash:
+        if elapsed >= timedelta(minutes=cooldown_minutes):
             item.last_sent_at = now.isoformat()
             item.payload_hash = payload_hash
-            self._save()
-            return True
-
-        if now - last_sent >= cooldown:
-            item.last_sent_at = now.isoformat()
-            item.payload_hash = payload_hash
+            item.cooldown_minutes = cooldown_minutes
             self._save()
             return True
 

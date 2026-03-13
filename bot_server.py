@@ -642,7 +642,7 @@ def _compute_signals_sync(cfg: dict, engine: dict) -> dict:
             ).encode("utf-8")
         ).hexdigest()
 
-        dedup_minutes = 45
+        dedup_minutes = 180
         if not store.allow(key, payload_hash, cooldown_minutes=dedup_minutes):
             print(f"[scanner] dedup skip: {signal.symbol} {signal.side}")
             continue
