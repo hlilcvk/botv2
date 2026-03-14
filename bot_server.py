@@ -667,11 +667,11 @@ def _compute_signals_sync(cfg: dict, engine: dict) -> dict:
         except Exception as e:
             print(f"[tp_matrix_structural] {signal.symbol}: {e}")
             tp_list = [
-                {"price": signal.tp1, "source": "ATR_FALLBACK", "tf": timeframe, "label": "TP1",
+                {"price": signal.tp1, "source": "ATR_FALLBACK", "tf": signal.timeframe, "label": "TP1",
                  "rr": 1.5, "distance_pct": "N/A", "hit": False, "hit_at": None, "snapped": False},
-                {"price": signal.tp2, "source": "ATR_FALLBACK", "tf": timeframe, "label": "TP2",
+                {"price": signal.tp2, "source": "ATR_FALLBACK", "tf": signal.timeframe, "label": "TP2",
                  "rr": 2.5, "distance_pct": "N/A", "hit": False, "hit_at": None, "snapped": False},
-                {"price": signal.tp3, "source": "ATR_FALLBACK", "tf": timeframe, "label": "TP3",
+                {"price": signal.tp3, "source": "ATR_FALLBACK", "tf": signal.timeframe, "label": "TP3",
                  "rr": 4.0, "distance_pct": "N/A", "hit": False, "hit_at": None, "snapped": False},
             ]
             struct_stop = signal.stop_loss
