@@ -252,6 +252,12 @@ async def get_platform():
     return FileResponse(os.path.join(_BOT_DIR, "platform.html"))
 
 
+@app.get("/platform2")
+@app.get("/platform2.html")
+async def get_platform2():
+    return FileResponse(os.path.join(_BOT_DIR, "platform2.html"))
+
+
 # ── Notification helpers ──────────────────────────────────────────────────────
 
 def _sync_send_telegram(cfg: dict, text: str, photo_path: Optional[str]):
