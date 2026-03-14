@@ -193,6 +193,53 @@ async def get_signals():
     return {"signals": recent_signals, "count": len(recent_signals)}
 
 
+@app.get("/api/ticker")
+async def proxy_ticker(exchange: str, symbol: str):
+    """CORS proxy — Gate.io/KuCoin/OKX ticker verisi tarayıcı üzerinden alınamaz."""
+    try:
+        from adapters.exchanges import ExchangeClientFactory
+        client = ExchangeClientFactory.build(exchange)
+        loop = asyncio.get_event_loop()
+        ticker = await loop.run_in_executor(None, lambda: client.fetch_ticker(symbol))
+        return {
+            "price":  float(ticker.get("last") or 0),
+            "change": float(ticker.get("percentage") or 0),
+            "vol":    float(ticker.get("quoteVolume") or ticker.get("baseVolume") or 0),
+        }
+    except Exception as e:
+        return {"error": str(e)}, 502
+
+
+@app.get("/api/orderbook")
+async def proxy_orderbook(exchange: str, symbol: str, limit: int = 10):
+    """CORS proxy — emir defteri."""
+    try:
+        from adapters.exchanges import ExchangeClientFactory
+        client = ExchangeClientFactory.build(exchange)
+        loop = asyncio.get_event_loop()
+        ob = await loop.run_in_executor(None, lambda: client.fetch_order_book(symbol, limit))
+        return {"bids": ob["bids"][:limit], "asks": ob["asks"][:limit]}
+    except Exception as e:
+        return {"error": str(e)}, 502
+
+
+@app.get("/api/klines")
+async def proxy_klines(exchange: str, symbol: str, timeframe: str = "15m", limit: int = 200):
+    """CORS proxy — mum verisi."""
+    try:
+        from adapters.exchanges import ExchangeClientFactory
+        client = ExchangeClientFactory.build(exchange)
+        loop = asyncio.get_event_loop()
+        ohlcv = await loop.run_in_executor(None, lambda: client.fetch_ohlcv(symbol, timeframe, limit=limit))
+        candles = [
+            {"time": int(k[0] / 1000), "open": k[1], "high": k[2], "low": k[3], "close": k[4], "volume": k[5]}
+            for k in ohlcv if k[1] is not None
+        ]
+        return candles
+    except Exception as e:
+        return {"error": str(e)}, 502
+
+
 @app.get("/")
 async def get_index():
     return FileResponse(os.path.join(_BOT_DIR, "index.html"))

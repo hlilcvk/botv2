@@ -524,6 +524,12 @@ function getEx(exchange) {
   return EX[exchange] || EX.binance;
 }
 
+// Tarayıcıdan CORS engeli olan borsalar — sunucu proxy üzerinden çekilir
+var PROXY_EXCHANGES = ['gateio','kucoin','okx'];
+function needsProxy(exchange) {
+  return PROXY_EXCHANGES.indexOf(exchange) !== -1;
+}
+
 /* ═══════════════════════════════════════
    STATE
 ═══════════════════════════════════════ */
@@ -722,16 +728,20 @@ function pollNonBinance() {
 
 async function fetchTicker(symbol, exchange) {
   var cacheKey = symbol+'_'+exchange;
-  var mtype = mktTypes.get(cacheKey) || 'SPOT';
   var ex = getEx(exchange);
   var sym = ex.toSym(symbol);
   try {
-    var url = (exchange==='binance' && mtype==='PERP') ? ex.perpTicker(sym) : ex.spotTicker(sym);
-    var r = await fetch(url, {signal: AbortSignal.timeout(5000)});
-    if(!r.ok) return;
-    var d = await r.json();
-    var parsed = ex.parseTicker(d);
-    if(parsed && parsed.price) {
+    var parsed = null;
+    if(needsProxy(exchange)) {
+      var r = await fetch('/api/ticker?exchange='+exchange+'&symbol='+encodeURIComponent(symbol), {signal: AbortSignal.timeout(6000)});
+      if(r.ok) parsed = await r.json();
+    } else {
+      var mtype = mktTypes.get(cacheKey) || 'SPOT';
+      var url = (exchange==='binance' && mtype==='PERP') ? ex.perpTicker(sym) : ex.spotTicker(sym);
+      var r = await fetch(url, {signal: AbortSignal.timeout(5000)});
+      if(r.ok) { var d = await r.json(); parsed = ex.parseTicker(d); }
+    }
+    if(parsed && parsed.price && !parsed.error) {
       livePx.set(cacheKey, parsed);
       updateRow(symbol, exchange);
     }
@@ -1049,10 +1059,16 @@ async function loadChart(symbol, exchange, mtype, tf) {
 
   var candles = null;
   try {
-    var r = await fetch(url, {signal: AbortSignal.timeout(8000)});
-    if(r.ok) { var d = await r.json(); candles = ex.parseKline(d); }
+    if(needsProxy(exchange)) {
+      var r = await fetch('/api/klines?exchange='+exchange+'&symbol='+encodeURIComponent(symbol)+'&timeframe='+tf+'&limit=200', {signal: AbortSignal.timeout(10000)});
+      if(r.ok) { var d = await r.json(); if(Array.isArray(d)) candles = d; }
+    } else {
+      var r = await fetch(url, {signal: AbortSignal.timeout(8000)});
+      if(r.ok) { var d = await r.json(); candles = ex.parseKline(d); }
+    }
   } catch(e) {}
 
+  // Fallback → Binance
   if(!candles || !candles.length) {
     try {
       var binSym = symbol.replace('/','');
@@ -1115,38 +1131,44 @@ async function loadMarket(symbol, exchange, mtype) {
   var ex  = getEx(exchange);
   var sym = ex.toSym(symbol);
 
-  // Ticker → right card
+  // Ticker → sağ kart
   try {
-    var turl = (exchange==='binance' && mtype==='PERP') ? ex.perpTicker(sym) : ex.spotTicker(sym);
-    var tr = await fetch(turl, {signal: AbortSignal.timeout(6000)});
-    if(tr.ok) {
-      var td = await tr.json();
-      var px = ex.parseTicker(td);
-      if(px) {
-        var chgCls = px.change>=0?'g':'r';
-        var chgPfx = px.change>=0?'+':'';
-        document.getElementById('mmMarketData').innerHTML =
-          '<div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap">'+
-            '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:1rem;font-weight:800;color:var(--t1)">'+fmtPrice(px.price)+'</span>'+
-            '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:.8rem;font-weight:700;color:var(--'+(px.change>=0?'green':'red')+')">'+chgPfx+px.change.toFixed(2)+'%</span>'+
-          '</div>'+
-          '<div style="display:flex;gap:12px;margin-top:5px;flex-wrap:wrap">'+
-            mmkv('Hacim',fmtVol(px.vol))+
-            mmkv('Piyasa',mtype,mtype==='PERP'?'w':'b')+
-          '</div>';
-      }
+    var px = null;
+    if(needsProxy(exchange)) {
+      var tr = await fetch('/api/ticker?exchange='+exchange+'&symbol='+encodeURIComponent(symbol), {signal: AbortSignal.timeout(6000)});
+      if(tr.ok) px = await tr.json();
+    } else {
+      var turl = (exchange==='binance' && mtype==='PERP') ? ex.perpTicker(sym) : ex.spotTicker(sym);
+      var tr = await fetch(turl, {signal: AbortSignal.timeout(6000)});
+      if(tr.ok) { var td = await tr.json(); px = ex.parseTicker(td); }
+    }
+    if(px && px.price && !px.error) {
+      var chgCls = (px.change||0)>=0?'g':'r';
+      var chgPfx = (px.change||0)>=0?'+':'';
+      document.getElementById('mmMarketData').innerHTML =
+        '<div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap">'+
+          '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:1rem;font-weight:800;color:var(--t1)">'+fmtPrice(px.price)+'</span>'+
+          '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:.8rem;font-weight:700;color:var(--'+(px.change>=0?'green':'red')+')">'+chgPfx+(px.change||0).toFixed(2)+'%</span>'+
+        '</div>'+
+        '<div style="display:flex;gap:12px;margin-top:5px;flex-wrap:wrap">'+
+          mmkv('Hacim',fmtVol(px.vol))+
+          mmkv('Piyasa',mtype,mtype==='PERP'?'w':'b')+
+        '</div>';
     }
   } catch(e) {}
 
   // Orderbook
   try {
-    var durl = (exchange==='binance' && mtype==='PERP') ? ex.perpDepth(sym) : ex.spotDepth(sym);
-    var dr = await fetch(durl, {signal: AbortSignal.timeout(6000)});
-    if(dr.ok) {
-      var dd = await dr.json();
-      var ob = ex.parseDepth(dd);
-      renderOrderbook(ob.bids, ob.asks);
+    var ob = null;
+    if(needsProxy(exchange)) {
+      var dr = await fetch('/api/orderbook?exchange='+exchange+'&symbol='+encodeURIComponent(symbol), {signal: AbortSignal.timeout(6000)});
+      if(dr.ok) ob = await dr.json();
+    } else {
+      var durl = (exchange==='binance' && mtype==='PERP') ? ex.perpDepth(sym) : ex.spotDepth(sym);
+      var dr = await fetch(durl, {signal: AbortSignal.timeout(6000)});
+      if(dr.ok) { var dd = await dr.json(); ob = ex.parseDepth(dd); }
     }
+    if(ob && ob.bids) renderOrderbook(ob.bids, ob.asks);
   } catch(e) {
     document.getElementById('obBids').innerHTML = '<div style="color:var(--t4);font-size:.68rem;padding:4px 0">Veri alınamadı</div>';
     document.getElementById('obAsks').innerHTML = '';
