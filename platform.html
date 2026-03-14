@@ -77,29 +77,29 @@ body{background:var(--bg);color:var(--t1);font-family:'Inter',sans-serif;min-hei
 .pb-strip{display:flex;flex-wrap:wrap;gap:6px}
 
 /* card — yatay dikdörtgen */
-.pb-card{display:flex;flex-direction:column;width:235px;flex-shrink:0;
-  background:var(--surface);border:1px solid var(--border);border-radius:9px;
+.pb-card{display:flex;flex-direction:column;width:280px;flex-shrink:0;
+  background:var(--surface);border:1px solid var(--border);border-radius:10px;
   cursor:pointer;transition:border-color .15s,box-shadow .15s;overflow:hidden}
-.pb-card:hover{border-color:var(--border2);box-shadow:0 3px 12px rgba(0,0,0,.09)}
+.pb-card:hover{border-color:var(--border2);box-shadow:0 3px 14px rgba(0,0,0,.1)}
 .pb-card.long{border-left:3px solid var(--green);background:rgba(14,203,129,.03)}
 .pb-card.short{border-left:3px solid var(--red);background:rgba(246,70,93,.03)}
 /* Row 1: symbol + side + score + tf + exch */
-.pb-row1{display:flex;align-items:center;gap:5px;padding:7px 10px 5px;flex-wrap:nowrap;overflow:hidden}
-.pb-sym{font-weight:800;font-size:.85rem;color:var(--t1);letter-spacing:.3px;flex-shrink:0}
-.pb-side{font-size:.58rem;font-weight:700;padding:2px 6px;border-radius:4px;flex-shrink:0;letter-spacing:.3px}
+.pb-row1{display:flex;align-items:center;gap:6px;padding:9px 12px 6px;flex-wrap:nowrap;overflow:hidden}
+.pb-sym{font-weight:800;font-size:.92rem;color:var(--t1);letter-spacing:.3px;flex-shrink:0}
+.pb-side{font-size:.62rem;font-weight:700;padding:2px 7px;border-radius:5px;flex-shrink:0;letter-spacing:.3px}
 .pb-side.long{background:var(--gbg);color:var(--green)}
 .pb-side.short{background:var(--rbg);color:var(--red)}
-.pb-score{font-family:'IBM Plex Mono',monospace;font-size:.68rem;color:var(--ydark);font-weight:800;flex-shrink:0}
-.pb-tf{font-family:'IBM Plex Mono',monospace;font-size:.56rem;color:var(--t3);
-  background:var(--hover);border:1px solid var(--border);border-radius:3px;padding:1px 4px;flex-shrink:0}
-.pb-exbadge{font-family:'IBM Plex Mono',monospace;font-size:.54rem;color:var(--t3);
-  border-radius:3px;padding:1px 0;flex-shrink:0;margin-left:auto;color:var(--t4)}
+.pb-score{font-family:'IBM Plex Mono',monospace;font-size:.72rem;color:var(--ydark);font-weight:800;flex-shrink:0}
+.pb-tf{font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--t3);
+  background:var(--hover);border:1px solid var(--border);border-radius:3px;padding:1px 5px;flex-shrink:0}
+.pb-exbadge{font-family:'IBM Plex Mono',monospace;font-size:.58rem;
+  flex-shrink:0;margin-left:auto;color:var(--t4)}
 /* Row 2: entry | sl | tp1 | price | 24s */
 .pb-row2{display:flex;align-items:stretch;border-top:1px solid var(--border);padding:0;gap:0}
-.pb-cell{display:flex;flex-direction:column;flex:1;min-width:0;padding:5px 7px}
+.pb-cell{display:flex;flex-direction:column;flex:1;min-width:0;padding:6px 9px}
 .pb-cell+.pb-cell{border-left:1px solid var(--border)}
-.pb-ck{font-family:'IBM Plex Mono',monospace;font-size:.5rem;color:var(--t4);text-transform:uppercase;margin-bottom:2px;letter-spacing:.3px}
-.pb-cv{font-family:'IBM Plex Mono',monospace;font-size:.67rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pb-ck{font-family:'IBM Plex Mono',monospace;font-size:.52rem;color:var(--t4);text-transform:uppercase;margin-bottom:3px;letter-spacing:.3px}
+.pb-cv{font-family:'IBM Plex Mono',monospace;font-size:.72rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pb-cv.g{color:var(--green)}.pb-cv.r{color:var(--red)}.pb-cv.y{color:var(--ydark)}
 
 .pb-empty{font-family:'IBM Plex Mono',monospace;font-size:.72rem;color:var(--t4);
@@ -211,11 +211,13 @@ td{padding:9px 12px;vertical-align:middle;white-space:nowrap}
 .mm-why-line{font-size:.76rem;color:var(--t2);line-height:1.55;padding:2px 0}
 /* Right: mini market data + tabs */
 .mm-mkt-mini{padding:10px 14px;border-bottom:1px solid var(--border);flex-shrink:0;background:var(--surface)}
-.mm-tabs{display:flex;flex-wrap:wrap;border-bottom:1px solid var(--border);flex-shrink:0;background:var(--card)}
-.mm-tab{padding:6px 10px;font-size:.65rem;font-weight:600;color:var(--t3);cursor:pointer;
-  border-bottom:2px solid transparent;white-space:nowrap;transition:color .15s,border-color .15s;flex-shrink:0}
-.mm-tab:hover{color:var(--t1)}
-.mm-tab.active{color:var(--ydark);border-bottom-color:var(--yellow)}
+.mm-tabs{display:flex;flex-wrap:wrap;gap:5px;padding:10px 12px;border-bottom:1px solid var(--border);
+  flex-shrink:0;background:var(--card)}
+.mm-tab{padding:5px 12px;font-size:.68rem;font-weight:600;color:var(--t3);cursor:pointer;
+  border:1px solid var(--border);border-radius:6px;background:var(--surface);
+  white-space:nowrap;transition:all .15s;flex-shrink:0;user-select:none}
+.mm-tab:hover{border-color:var(--border2);color:var(--t1);background:var(--hover)}
+.mm-tab.active{background:var(--yellow);border-color:var(--yellow);color:#1e2329;font-weight:700}
 .mm-tab-body{flex:1;overflow-y:auto;min-height:0}
 .mm-pane{display:none}.mm-pane.active{display:block}
 /* Right: card style (legacy compat) */
@@ -749,7 +751,7 @@ function renderAll() {
 function renderPinboard() {
   var strip = document.getElementById('pbStrip');
   var all   = Array.from(signals.values()).sort(function(a,b){return (b.ts||0)-(a.ts||0);});
-  var sigs  = filterSigs(all).slice(0, 14); // maks 14 kart
+  var sigs  = filterSigs(all).slice(0, 10); // maks 10 kart
   if(!sigs.length) {
     var msg = all.length ? 'Son '+_sigHours+'s içinde sinyal yok — Geçmiş\'e bakın' : 'Henüz sinyal yok...';
     strip.innerHTML = '<div class="pb-empty">'+msg+'</div>';
