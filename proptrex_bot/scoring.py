@@ -16,6 +16,7 @@ class SignalResult:
     exchange: str
     timeframe: str
     side: str
+    signal_type: str          # DIP_BUY | MOMENTUM_LONG | SHORT | MOMENTUM_SHORT
     status: str
     opportunity_score: float
     why_enter_score: float
@@ -260,6 +261,42 @@ def entry_freshness(df: pd.DataFrame, side: str, entry_low: float, entry_high: f
     return "Do Not Chase"
 
 
+def compute_change_24h(df: pd.DataFrame, timeframe: str) -> float:
+    """Güncel kapanış ile 24 saat önceki kapanış arasındaki % değişim."""
+    bars_per_day = {
+        "1m": 1440, "3m": 480, "5m": 288, "15m": 96,
+        "30m": 48, "1h": 24, "4h": 6, "1d": 1,
+    }
+    lookback = bars_per_day.get(timeframe, 96)
+    if len(df) <= lookback:
+        return 0.0
+    price_now = float(df.iloc[-1]["close"])
+    price_24h = float(df.iloc[-(lookback + 1)]["close"])
+    if price_24h <= 0:
+        return 0.0
+    return round((price_now - price_24h) / price_24h * 100.0, 2)
+
+
+def classify_signal_type(side: str, rsi: float, change_24h: float) -> str:
+    """
+    Sinyal tipini belirle:
+      DIP_BUY      — fiyat düşmüş, destek bölgesine gelmiş, toparlanma bekleniyor
+      MOMENTUM_LONG — zaten koşuyor, devam momentumu
+      SHORT         — kısa pozisyon fırsatı (standart)
+      MOMENTUM_SHORT — aşırı satımdan sonra düşüş devamı
+    """
+    if side == "LONG":
+        # Coin son 24 saatte çok az düştü veya hafif negatifse → dip alım
+        if change_24h <= 5.0 and rsi < 55:
+            return "DIP_BUY"
+        # Coin zaten yukarı koşuyor → momentum
+        return "MOMENTUM_LONG"
+    else:
+        if change_24h >= -5.0 and rsi > 45:
+            return "MOMENTUM_SHORT"
+        return "SHORT"
+
+
 def hold_profile(timeframe: str) -> Tuple[str, int]:
     mapping = {
         "1m": ("5–90 min", 45),
@@ -309,6 +346,20 @@ def build_signal(
     if len(df) < 180:
         return None
 
+    # ── 24 saatlik değişim — aşırı alım koruması ──────────────────────────────
+    change_24h = compute_change_24h(df, timeframe)
+    row_last = df.iloc[-1]
+    rsi_now = float(row_last["rsi"])
+
+    # LONG sinyali engelleme koşulları:
+    #   • Son 24 saatte +30%+ pump yapmış  → tepeden al değil, dağılım bölgesi
+    #   • RSI > 75                         → aşırı alım, dip alım değil
+    overbought_block = change_24h > 30.0 or rsi_now > 75.0
+
+    # SHORT sinyali engelleme koşulları:
+    #   • Son 24 saatte -%30+ çökmüş ve RSI < 25 → aşırı satım, short değil
+    oversold_block = change_24h < -30.0 and rsi_now < 25.0
+
     buyer_pct, seller_pct = buyer_seller_pressure(df)
     whale_action, whale_strength, whale_mult = detect_whale(df)
     liquidity_event, liquidity_score = detect_liquidity_sweep(df)
@@ -321,7 +372,8 @@ def build_signal(
     side = "NONE"
 
     if (
-        structure_bias in ["BULLISH", "DECISION", "RANGE"]
+        not overbought_block
+        and structure_bias in ["BULLISH", "DECISION", "RANGE"]
         and buyer_pct >= 50.1
         and whale_action in ["BUY", "NONE"]
         and mom_bias in ["BULLISH", "NEUTRAL"]
@@ -329,7 +381,8 @@ def build_signal(
         side = "LONG"
 
     elif (
-        structure_bias in ["BEARISH", "DECISION", "RANGE"]
+        not oversold_block
+        and structure_bias in ["BEARISH", "DECISION", "RANGE"]
         and seller_pct >= 50.1
         and whale_action in ["SELL", "NONE"]
         and mom_bias in ["BEARISH", "NEUTRAL"]
@@ -339,10 +392,17 @@ def build_signal(
     if side == "NONE":
         import os
         debug_path = os.path.join(os.path.dirname(__file__), "bot_debug.txt")
-        msg = f"{symbol} | struct={structure_bias}, buy={buyer_pct:.1f}, sell={seller_pct:.1f}, whale={whale_action}, mom={mom_bias}\n"
+        msg = (
+            f"{symbol} | struct={structure_bias}, buy={buyer_pct:.1f}, sell={seller_pct:.1f}, "
+            f"whale={whale_action}, mom={mom_bias}, rsi={rsi_now:.1f}, 24h={change_24h:+.1f}%"
+            f"{' [OB_BLOCK]' if overbought_block else ''}{' [OS_BLOCK]' if oversold_block else ''}\n"
+        )
         with open(debug_path, "a") as f:
             f.write(msg)
         return None
+
+    # ── Sinyal tipi sınıflandırması ───────────────────────────────────────────
+    signal_type = classify_signal_type(side, rsi_now, change_24h)
 
     context_score = score_market_context(context_map, side, coin_bias=structure_bias)
     if side == "LONG":
@@ -436,6 +496,7 @@ def build_signal(
         exchange=exchange,
         timeframe=timeframe,
         side=side,
+        signal_type=signal_type,
         status=status,
         opportunity_score=opportunity_score,
         why_enter_score=why_enter_score,

@@ -105,6 +105,37 @@ body{background:var(--bg);color:var(--t1);font-family:'Inter',sans-serif;min-hei
 .pb-empty{font-family:'IBM Plex Mono',monospace;font-size:.72rem;color:var(--t4);
   font-style:italic;padding:4px 0;align-self:center}
 
+/* ── Piyasa sekmesi (tüm coinler) ── */
+.mkt-tabs{display:flex;border-bottom:1px solid var(--border);background:var(--card);
+  padding:0 20px;position:sticky;top:57px;z-index:98;flex-shrink:0}
+.mkt-tab{padding:8px 16px;font-size:.75rem;font-weight:600;color:var(--t3);cursor:pointer;
+  border-bottom:2px solid transparent;white-space:nowrap;transition:color .12s,border-color .12s}
+.mkt-tab.active{color:var(--ydark);border-bottom-color:var(--yellow)}
+.mkt-search-row{display:flex;align-items:center;gap:8px;padding:8px 20px;
+  background:var(--card);border-bottom:1px solid var(--border);flex-shrink:0}
+.mkt-search{flex:1;max-width:280px;padding:5px 10px;font-size:.78rem;font-family:'IBM Plex Mono',monospace;
+  border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--t1);outline:none}
+.mkt-search:focus{border-color:var(--yellow)}
+.mkt-type-filter{display:flex;gap:5px}
+.mkt-type-btn{font-family:'IBM Plex Mono',monospace;font-size:.6rem;font-weight:700;
+  padding:3px 9px;border-radius:5px;border:1px solid var(--border);
+  background:none;color:var(--t3);cursor:pointer;transition:all .12s}
+.mkt-type-btn:hover{border-color:var(--border2);color:var(--t1)}
+.mkt-type-btn.active{background:var(--ybg);border-color:var(--yellow);color:var(--ydark)}
+/* Piyasa coin tablosu */
+.mkt-coin-wrap{background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden}
+.mkt-coin-row{display:flex;align-items:center;padding:8px 14px;border-bottom:1px solid var(--border);
+  cursor:pointer;transition:background .1s;gap:12px}
+.mkt-coin-row:last-child{border-bottom:none}
+.mkt-coin-row:hover{background:var(--hover)}
+.mkt-coin-sym{font-weight:700;font-size:.85rem;min-width:80px;flex-shrink:0}
+.mkt-coin-price{font-family:'IBM Plex Mono',monospace;font-size:.8rem;font-weight:700;min-width:90px}
+.mkt-coin-chg{font-family:'IBM Plex Mono',monospace;font-size:.75rem;font-weight:600;min-width:60px;text-align:right}
+.mkt-coin-vol{font-family:'IBM Plex Mono',monospace;font-size:.7rem;color:var(--t3);min-width:70px;text-align:right}
+.mkt-coin-bar{flex:1;height:3px;background:var(--border);border-radius:2px;overflow:hidden;min-width:40px}
+.mkt-coin-bar-fill{height:100%;border-radius:2px}
+.mkt-empty{padding:40px 20px;text-align:center;color:var(--t4);font-size:.8rem;font-family:'IBM Plex Mono',monospace}
+
 /* ── Main table area ── */
 .main{padding:20px;max-width:1400px;margin:0 auto}
 .tbl-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
@@ -339,11 +370,16 @@ td{padding:9px 12px;vertical-align:middle;white-space:nowrap}
     <div class="pb-hdr">
       <div class="pb-label">Bot Sinyalleri</div>
       <div class="pb-filter">
-        <span style="font-family:'IBM Plex Mono',monospace;font-size:.55rem;color:var(--t4)">Göster:</span>
-        <button class="pb-filter-btn active" id="pf2"  onclick="setSigFilter(2)">Son 2s</button>
+        <span style="font-family:'IBM Plex Mono',monospace;font-size:.55rem;color:var(--t4)">Süre:</span>
+        <button class="pb-filter-btn active" id="pf2"  onclick="setSigFilter(2)">2s</button>
         <button class="pb-filter-btn"        id="pf6"  onclick="setSigFilter(6)">6s</button>
         <button class="pb-filter-btn"        id="pf24" onclick="setSigFilter(24)">24s</button>
         <button class="pb-filter-btn"        id="pf0"  onclick="setSigFilter(0)">Tümü</button>
+        <span style="font-family:'IBM Plex Mono',monospace;font-size:.55rem;color:var(--t4);margin-left:6px">Tip:</span>
+        <button class="pb-filter-btn active" id="pt_all"      onclick="setSigType('')">Tümü</button>
+        <button class="pb-filter-btn"        id="pt_dipbuy"   onclick="setSigType('DIP_BUY')">Dip Al</button>
+        <button class="pb-filter-btn"        id="pt_momlong"  onclick="setSigType('MOMENTUM_LONG')">Momentum L</button>
+        <button class="pb-filter-btn"        id="pt_short"    onclick="setSigType('SHORT')">Short</button>
       </div>
     </div>
     <div class="pb-strip" id="pbStrip">
@@ -351,6 +387,26 @@ td{padding:9px 12px;vertical-align:middle;white-space:nowrap}
     </div>
   </div>
 
+  <!-- ── Sekme çubuğu: Bot Sinyalleri | Piyasa ── -->
+  <div class="mkt-tabs">
+    <div class="mkt-tab active" id="mtab-bot"    onclick="switchMainTab('bot')">Bot Sinyalleri</div>
+    <div class="mkt-tab"       id="mtab-market"  onclick="switchMainTab('market')">Piyasa</div>
+  </div>
+
+  <!-- ── Piyasa arama + filtre satırı ── -->
+  <div class="mkt-search-row" id="mktSearchRow" style="display:none">
+    <input class="mkt-search" id="mktSearch" type="text" placeholder="Sembol ara... (BTC, ETH...)" oninput="filterMktCoins()">
+    <div class="mkt-type-filter">
+      <button class="mkt-type-btn active" id="mf_all"  onclick="setMktFilter('')">Tümü</button>
+      <button class="mkt-type-btn"        id="mf_up"   onclick="setMktFilter('up')">Yükselen</button>
+      <button class="mkt-type-btn"        id="mf_down" onclick="setMktFilter('down')">Düşen</button>
+      <button class="mkt-type-btn"        id="mf_vol"  onclick="setMktFilter('vol')">Hacim</button>
+    </div>
+    <span style="font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--t4)" id="mktCoinCount"></span>
+  </div>
+
+  <!-- ── Bot Sinyaller paneli ── -->
+  <div id="panelBot">
   <!-- ── Live Table ── -->
   <div class="main">
     <div class="tbl-hdr">
@@ -366,6 +422,7 @@ td{padding:9px 12px;vertical-align:middle;white-space:nowrap}
           <tr>
             <th>Sembol</th>
             <th>Yön</th>
+            <th>Tip</th>
             <th>Skor</th>
             <th>Piyasa</th>
             <th>Borsa</th>
@@ -380,10 +437,20 @@ td{padding:9px 12px;vertical-align:middle;white-space:nowrap}
           </tr>
         </thead>
         <tbody id="tblBody">
-          <tr class="empty-row"><td colspan="9">Bot bağlantısı bekleniyor...</td></tr>
+          <tr class="empty-row"><td colspan="14">Bot bağlantısı bekleniyor...</td></tr>
         </tbody>
       </table>
     </div>
+  </div>
+  </div>
+
+  <!-- ── Piyasa paneli (tüm coinler) ── -->
+  <div id="panelMarket" style="display:none">
+  <div class="main">
+    <div class="mkt-coin-wrap" id="mktCoinList">
+      <div class="mkt-empty">Binance Futures verileri yükleniyor...</div>
+    </div>
+  </div>
   </div>
 </div>
 
@@ -543,7 +610,12 @@ var _binPerpWS  = null;   // Binance perp websocket
 var _chartObj   = null;
 var _chartSeries = null;
 var _mktSym = null, _mktEx = null, _mktType = null, _curTf = '15m';
-var _sigHours = 2; // filtre: son kaç saat (0 = tümü)
+var _sigHours = 2;   // süre filtresi (0 = tümü)
+var _sigType  = '';  // tip filtresi ('' = tümü)
+var _mainTab  = 'bot';
+var _mktFilter = '';
+var _mktSearch = '';
+var _allCoins  = new Map();  // sym → {price, change, vol, sym}
 
 function setSigFilter(h) {
   _sigHours = h;
@@ -553,10 +625,129 @@ function setSigFilter(h) {
   renderAll();
 }
 
+function setSigType(t) {
+  _sigType = t;
+  ['pt_all','pt_dipbuy','pt_momlong','pt_short'].forEach(function(id){
+    var el = document.getElementById(id);
+    if(el) el.classList.remove('active');
+  });
+  var map = {'':'pt_all','DIP_BUY':'pt_dipbuy','MOMENTUM_LONG':'pt_momlong','SHORT':'pt_short'};
+  var el = document.getElementById(map[t]||'pt_all');
+  if(el) el.classList.add('active');
+  renderAll();
+}
+
 function filterSigs(sigs) {
-  if(!_sigHours) return sigs;
-  var cutoff = Date.now() - _sigHours * 3600000;
-  return sigs.filter(function(s){ return (s.ts||0) >= cutoff; });
+  var out = sigs;
+  if(_sigHours) {
+    var cutoff = Date.now() - _sigHours * 3600000;
+    out = out.filter(function(s){ return (s.ts||0) >= cutoff; });
+  }
+  if(_sigType) {
+    out = out.filter(function(s){ return (s.signal_type||s.side) === _sigType; });
+  }
+  return out;
+}
+
+/* ── Ana sekme geçişi: Bot / Piyasa ── */
+function switchMainTab(tab) {
+  _mainTab = tab;
+  document.getElementById('mtab-bot').classList.toggle('active', tab==='bot');
+  document.getElementById('mtab-market').classList.toggle('active', tab==='market');
+  document.getElementById('panelBot').style.display    = tab==='bot'    ? '' : 'none';
+  document.getElementById('panelMarket').style.display = tab==='market' ? '' : 'none';
+  document.getElementById('mktSearchRow').style.display = tab==='market' ? '' : 'none';
+  if(tab==='market') renderMktCoins();
+}
+
+/* ── Piyasa filtresi ── */
+function setMktFilter(f) {
+  _mktFilter = f;
+  ['mf_all','mf_up','mf_down','mf_vol'].forEach(function(id){
+    var el = document.getElementById(id);
+    if(el) el.classList.remove('active');
+  });
+  var map = {'':'mf_all','up':'mf_up','down':'mf_down','vol':'mf_vol'};
+  var el = document.getElementById(map[f]||'mf_all');
+  if(el) el.classList.add('active');
+  renderMktCoins();
+}
+
+function filterMktCoins() {
+  _mktSearch = (document.getElementById('mktSearch')||{}).value || '';
+  renderMktCoins();
+}
+
+function renderMktCoins() {
+  var list = Array.from(_allCoins.values());
+
+  // Arama filtresi
+  if(_mktSearch.trim()) {
+    var q = _mktSearch.trim().toUpperCase();
+    list = list.filter(function(c){ return c.sym.indexOf(q) !== -1; });
+  }
+
+  // Tip filtresi
+  if(_mktFilter === 'up')   list = list.filter(function(c){ return c.change > 0; });
+  if(_mktFilter === 'down') list = list.filter(function(c){ return c.change < 0; });
+  if(_mktFilter === 'vol')  list.sort(function(a,b){ return b.vol - a.vol; });
+  else list.sort(function(a,b){ return Math.abs(b.change) - Math.abs(a.change); });
+
+  var countEl = document.getElementById('mktCoinCount');
+  if(countEl) countEl.textContent = list.length + ' coin';
+
+  var container = document.getElementById('mktCoinList');
+  if(!container) return;
+  if(!list.length) {
+    container.innerHTML = '<div class="mkt-empty">Sonuç bulunamadı</div>';
+    return;
+  }
+
+  var maxVol = Math.max.apply(null, list.map(function(c){ return c.vol||0; })) || 1;
+
+  container.innerHTML = list.slice(0, 200).map(function(c) {
+    var chgCls = c.change >= 0 ? 'chg-pos' : 'chg-neg';
+    var chgStr = (c.change >= 0 ? '+' : '') + c.change.toFixed(2) + '%';
+    var barColor = c.change >= 0 ? 'var(--green)' : 'var(--red)';
+    var barW = Math.min(100, Math.abs(c.change) * 3).toFixed(0);
+    var volPct = Math.min(100, (c.vol / maxVol) * 100).toFixed(0);
+    return '<div class="mkt-coin-row" onclick="openMktCoin(\''+c.sym+'\')">' +
+      '<div class="mkt-coin-sym">'+c.sym.replace('USDT','')+'<span style="color:var(--t4);font-size:.65rem">/USDT</span></div>' +
+      '<div class="mkt-coin-price">'+fmtPrice(c.price)+'</div>' +
+      '<div class="mkt-coin-chg '+chgCls+'">'+chgStr+'</div>' +
+      '<div class="mkt-coin-vol">'+fmtVol(c.vol)+'</div>' +
+      '<div class="mkt-coin-bar"><div class="mkt-coin-bar-fill" style="width:'+barW+'%;background:'+barColor+'"></div></div>' +
+    '</div>';
+  }).join('');
+}
+
+function openMktCoin(sym) {
+  // Piyasa sekmesindeki herhangi bir coini modal'da aç (Binance PERP)
+  var coin = _allCoins.get(sym);
+  if(!coin) return;
+  // Sinyaller içinde bu coin var mı?
+  var found = null;
+  signals.forEach(function(s){ if(s.symbol === sym+'/USDT' || s.symbol === sym) found = s; });
+  if(found) { openSignalModal(found._key); return; }
+  // Yoksa minimum veri ile aç
+  _mktSym  = sym+'/USDT';
+  _mktEx   = 'binance';
+  _mktType = 'PERP';
+  _curTf   = '15m';
+  document.getElementById('mktDrawerTitle').innerHTML =
+    '<span class="mm-sym-name">'+sym+'/USDT</span>'+
+    '<span class="badge perp" style="font-size:.6rem">PERP</span>'+
+    '<span class="badge exch" style="font-size:.6rem">BINANCE</span>';
+  document.querySelectorAll('.mm-tf-btn').forEach(function(b){
+    b.classList.toggle('active', b.textContent==='15m');
+  });
+  document.getElementById('mmWhy').style.display = 'none';
+  document.getElementById('mmMarketData').innerHTML = '<div style="color:var(--t4);font-size:.72rem">Yükleniyor...</div>';
+  switchSigTab('signal');
+  document.getElementById('mktDrawer').classList.add('open');
+  document.getElementById('overlay').classList.add('show');
+  loadChart(_mktSym, _mktEx, _mktType, _curTf);
+  loadMarket(_mktSym, _mktEx, _mktType);
 }
 
 /* ═══════════════════════════════════════
@@ -637,6 +828,32 @@ async function detectMarketType(symbol, exchange) {
 /* ═══════════════════════════════════════
    BINANCE WEBSOCKET (spot + perp)
 ═══════════════════════════════════════ */
+/* ═══════════════════════════════════════
+   TÜM BİNANCE FUTURES KOİNLERİ (Piyasa sekmesi)
+═══════════════════════════════════════ */
+var _allCoinsWS = null;
+
+function connectAllCoinsWS() {
+  if(_allCoinsWS && _allCoinsWS.readyState < 2) return;
+  _allCoinsWS = new WebSocket('wss://fstream.binance.com/ws/!miniTicker@arr');
+  _allCoinsWS.onmessage = function(ev) {
+    try {
+      var arr = JSON.parse(ev.data);
+      arr.forEach(function(t) {
+        if(!t.s || !t.s.endsWith('USDT')) return;
+        _allCoins.set(t.s, {
+          sym:    t.s,
+          price:  parseFloat(t.c),
+          change: parseFloat(t.P),
+          vol:    parseFloat(t.q),
+        });
+      });
+      if(_mainTab === 'market') renderMktCoins();
+    } catch(e){}
+  };
+  _allCoinsWS.onclose = function() { setTimeout(connectAllCoinsWS, 5000); };
+}
+
 function reconnectBinanceWS() {
   // Spot WS — if any binance SPOT signals exist
   var hasBinSpot = false, hasBinPerp = false;
@@ -834,6 +1051,10 @@ function buildRow(s) {
   var volStr   = px ? fmtVol(px.vol) : '<span style="color:var(--t4)">—</span>';
   var mBadge   = mtype==='PERP'?'<span class="badge perp">PERP</span>':mtype==='SPOT'?'<span class="badge spot">SPOT</span>':'<span style="color:var(--t4);font-size:.7rem">...</span>';
 
+  var stMap = {'DIP_BUY':'Dip Al','MOMENTUM_LONG':'Mom. L','MOMENTUM_SHORT':'Mom. S','SHORT':'Short'};
+  var stColor= {'DIP_BUY':'var(--blue)','MOMENTUM_LONG':'var(--green)','MOMENTUM_SHORT':'var(--whale)','SHORT':'var(--red)'};
+  var st = s.signal_type || (s.side==='LONG'?'LONG':'SHORT');
+
   return '<tr class="'+(s._isNew?'new-row':'')+'" onclick="openMktDrawer(\''+s._key+'\')">'+
     '<td>'+
       '<div class="sym-cell">'+
@@ -845,6 +1066,8 @@ function buildRow(s) {
       '</div>'+
     '</td>'+
     '<td><span class="badge '+sc+'">'+side+'</span></td>'+
+    '<td><span style="font-size:.68rem;font-weight:700;color:'+(stColor[st]||'var(--t3)')+'">'+
+      (stMap[st]||st)+'</span></td>'+
     '<td>'+
       '<div class="score-bar">'+
         '<span class="score-num" style="color:'+sc_c+'">'+score+'</span>'+
@@ -929,13 +1152,20 @@ function openSignalModal(key) {
 function fillBotTabs(s) {
   var matrix = s.tp_matrix||{};
   var tfs = Object.keys(matrix);
+  var entry_ref = s.entry_low || s.entry_high || 0;
+  function tpPct(tp) {
+    if(!tp || !entry_ref) return '';
+    var pct = ((tp - entry_ref) / entry_ref * 100);
+    return '<span style="font-size:.58rem;opacity:.7;margin-left:3px">'+(pct>=0?'+':'')+pct.toFixed(1)+'%</span>';
+  }
   var matHtml = tfs.length ? '<div class="tp-matrix-wrap">'+tfs.map(function(tf){
     var d=matrix[tf];
-    return '<div class="tp-row-box"><div class="tp-row-hdr">'+tf.toUpperCase()+' Zaman Dilimi</div>'+
+    return '<div class="tp-row-box">'+
+      '<div class="tp-row-hdr">'+tf.toUpperCase()+'</div>'+
       '<div class="tp-levels">'+
-        '<div><div class="tpl-lbl">TP1</div><div class="tpl-val g">'+fmt(d.tp1)+'</div></div>'+
-        '<div><div class="tpl-lbl">TP2</div><div class="tpl-val g">'+fmt(d.tp2)+'</div></div>'+
-        '<div><div class="tpl-lbl">TP3</div><div class="tpl-val g">'+fmt(d.tp3)+'</div></div>'+
+        '<div><div class="tpl-lbl">TP1</div><div class="tpl-val g">'+fmt(d.tp1)+tpPct(d.tp1)+'</div></div>'+
+        '<div><div class="tpl-lbl">TP2</div><div class="tpl-val g">'+fmt(d.tp2)+tpPct(d.tp2)+'</div></div>'+
+        '<div><div class="tpl-lbl">TP3</div><div class="tpl-val g">'+fmt(d.tp3)+tpPct(d.tp3)+'</div></div>'+
         (d.stop!==undefined?'<div><div class="tpl-lbl">Stop</div><div class="tpl-val r">'+fmt(d.stop)+'</div></div>':'')+
       '</div></div>';
   }).join('')+'</div>' : '<span style="color:var(--t4);font-size:.75rem">Mevcut değil</span>';
@@ -1288,6 +1518,7 @@ function showToastHtml(html, onclick) {
 
 connectBot();
 reconnectBinanceWS();
+connectAllCoinsWS();
 </script>
 </body>
 </html>
