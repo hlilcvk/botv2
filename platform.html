@@ -209,9 +209,8 @@ td{padding:11px 14px;vertical-align:middle;white-space:nowrap}
 .mm-why-line{font-size:.76rem;color:var(--t2);line-height:1.55;padding:2px 0}
 /* Right: mini market data + tabs */
 .mm-mkt-mini{padding:10px 14px;border-bottom:1px solid var(--border);flex-shrink:0;background:var(--surface)}
-.mm-tabs{display:flex;overflow-x:auto;border-bottom:1px solid var(--border);flex-shrink:0;background:var(--card)}
-.mm-tabs::-webkit-scrollbar{display:none}
-.mm-tab{padding:8px 11px;font-size:.68rem;font-weight:600;color:var(--t3);cursor:pointer;
+.mm-tabs{display:flex;flex-wrap:wrap;border-bottom:1px solid var(--border);flex-shrink:0;background:var(--card)}
+.mm-tab{padding:6px 10px;font-size:.65rem;font-weight:600;color:var(--t3);cursor:pointer;
   border-bottom:2px solid transparent;white-space:nowrap;transition:color .15s,border-color .15s;flex-shrink:0}
 .mm-tab:hover{color:var(--t1)}
 .mm-tab.active{color:var(--ydark);border-bottom-color:var(--yellow)}
@@ -408,12 +407,12 @@ td{padding:11px 14px;vertical-align:middle;white-space:nowrap}
       </div>
       <!-- Tabs -->
       <div class="mm-tabs">
-        <div class="mm-tab active" data-t="signal"       onclick="switchSigTab('signal')">&#x26A1; Sinyal</div>
-        <div class="mm-tab"        data-t="technical"    onclick="switchSigTab('technical')">&#x1F4CA; Teknik</div>
-        <div class="mm-tab"        data-t="fundamentals" onclick="switchSigTab('fundamentals')">&#x1F4CB; Temel</div>
-        <div class="mm-tab"        data-t="whale"        onclick="switchSigTab('whale')">&#x1F433; Balina</div>
-        <div class="mm-tab"        data-t="news"         onclick="switchSigTab('news')">&#x1F4F0; Haberler</div>
-        <div class="mm-tab"        data-t="orderbook"    onclick="switchSigTab('orderbook')">&#x1F4D6; Emir</div>
+        <div class="mm-tab active" data-t="signal"       onclick="switchSigTab('signal')">Sinyal</div>
+        <div class="mm-tab"        data-t="technical"    onclick="switchSigTab('technical')">Teknik</div>
+        <div class="mm-tab"        data-t="fundamentals" onclick="switchSigTab('fundamentals')">Temel</div>
+        <div class="mm-tab"        data-t="whale"        onclick="switchSigTab('whale')">Balina</div>
+        <div class="mm-tab"        data-t="news"         onclick="switchSigTab('news')">Haberler</div>
+        <div class="mm-tab"        data-t="orderbook"    onclick="switchSigTab('orderbook')">Emir Def.</div>
       </div>
       <!-- Tab panes -->
       <div class="mm-tab-body">
