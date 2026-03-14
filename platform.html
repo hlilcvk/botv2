@@ -190,7 +190,7 @@ td{padding:11px 14px;vertical-align:middle;white-space:nowrap}
 /* Split body */
 .mm-body{display:flex;flex:1;overflow:hidden;min-height:0}
 .mm-left{flex:1;min-width:0;display:flex;flex-direction:column;border-right:1px solid var(--border)}
-.mm-right{width:270px;flex-shrink:0;overflow-y:auto;display:flex;flex-direction:column;gap:0}
+.mm-right{width:320px;flex-shrink:0;overflow-y:hidden;display:flex;flex-direction:column;gap:0}
 /* Left: TF bar + chart + signal why */
 .mm-tf{display:flex;gap:4px;padding:7px 14px;border-bottom:1px solid var(--border);
   background:var(--surface);flex-shrink:0}
@@ -207,7 +207,17 @@ td{padding:11px 14px;vertical-align:middle;white-space:nowrap}
 .mm-why-title{font-family:'IBM Plex Mono',monospace;font-size:.58rem;font-weight:700;color:var(--t4);
   text-transform:uppercase;letter-spacing:1px;margin-bottom:6px}
 .mm-why-line{font-size:.76rem;color:var(--t2);line-height:1.55;padding:2px 0}
-/* Right: cards */
+/* Right: mini market data + tabs */
+.mm-mkt-mini{padding:10px 14px;border-bottom:1px solid var(--border);flex-shrink:0;background:var(--surface)}
+.mm-tabs{display:flex;overflow-x:auto;border-bottom:1px solid var(--border);flex-shrink:0;background:var(--card)}
+.mm-tabs::-webkit-scrollbar{display:none}
+.mm-tab{padding:8px 11px;font-size:.68rem;font-weight:600;color:var(--t3);cursor:pointer;
+  border-bottom:2px solid transparent;white-space:nowrap;transition:color .15s,border-color .15s;flex-shrink:0}
+.mm-tab:hover{color:var(--t1)}
+.mm-tab.active{color:var(--ydark);border-bottom-color:var(--yellow)}
+.mm-tab-body{flex:1;overflow-y:auto;min-height:0}
+.mm-pane{display:none}.mm-pane.active{display:block}
+/* Right: card style (legacy compat) */
 .mm-card{padding:12px 14px;border-bottom:1px solid var(--border)}
 .mm-card-title{font-family:'IBM Plex Mono',monospace;font-size:.58rem;font-weight:700;
   color:var(--t4);text-transform:uppercase;letter-spacing:1px;margin-bottom:9px}
@@ -286,7 +296,9 @@ td{padding:11px 14px;vertical-align:middle;white-space:nowrap}
   .mkt-modal{width:100%;height:100%;border-radius:0;top:0;left:0;
     transform:scale(.97);opacity:0}
   .mkt-modal.open{transform:scale(1);opacity:1}
-  .mm-right{width:220px}
+  .mm-body{flex-direction:column}
+  .mm-left{border-right:none;border-bottom:1px solid var(--border);min-height:45vh}
+  .mm-right{width:100%;height:auto;flex-shrink:0}
   .mm-tf-btn{padding:4px 8px;font-size:.62rem}
 }
 </style>
@@ -358,27 +370,6 @@ td{padding:11px 14px;vertical-align:middle;white-space:nowrap}
 <!-- ── Overlay ── -->
 <div class="overlay" id="overlay" onclick="closeAll()"></div>
 
-<!-- ── Bot Drawer ── -->
-<div class="drawer bot-drawer" id="botDrawer">
-  <div class="drawer-hdr">
-    <div class="drawer-title" id="botDrawerTitle">—</div>
-    <button class="drawer-close" onclick="closeBot()">&#x2715;</button>
-  </div>
-  <div class="drawer-tabs">
-    <div class="dtab active" data-t="signal"       onclick="switchBotTab('signal')">Signal</div>
-    <div class="dtab"        data-t="technical"    onclick="switchBotTab('technical')">Technical</div>
-    <div class="dtab"        data-t="fundamentals" onclick="switchBotTab('fundamentals')">Fundamentals</div>
-    <div class="dtab"        data-t="whale"        onclick="switchBotTab('whale')">Whale</div>
-    <div class="dtab"        data-t="news"         onclick="switchBotTab('news')">News</div>
-  </div>
-  <div class="drawer-body">
-    <div class="tab-pane active" id="bt-signal"></div>
-    <div class="tab-pane"        id="bt-technical"></div>
-    <div class="tab-pane"        id="bt-fundamentals"></div>
-    <div class="tab-pane"        id="bt-whale"></div>
-    <div class="tab-pane"        id="bt-news"></div>
-  </div>
-</div>
 
 <!-- ── Market Modal (panel_v3 style) ── -->
 <div class="mkt-modal" id="mktDrawer">
@@ -409,29 +400,38 @@ td{padding:11px 14px;vertical-align:middle;white-space:nowrap}
         <div id="mmWhyLines"></div>
       </div>
     </div>
-    <!-- RIGHT: data cards -->
+    <!-- RIGHT: mini market + tabs -->
     <div class="mm-right">
-      <!-- Market data card -->
-      <div class="mm-card">
-        <div class="mm-card-title">Piyasa Verisi</div>
-        <div id="mmMarketData"><div style="color:var(--t4);font-size:.75rem">Yükleniyor...</div></div>
+      <!-- Mini market data -->
+      <div class="mm-mkt-mini" id="mmMarketData">
+        <div style="color:var(--t4);font-size:.72rem">Yükleniyor...</div>
       </div>
-      <!-- Bot signal card -->
-      <div class="mm-card" id="mmBotCard" style="display:none">
-        <div class="mm-card-title">Bot Sinyali</div>
-        <div id="mmBotData"></div>
+      <!-- Tabs -->
+      <div class="mm-tabs">
+        <div class="mm-tab active" data-t="signal"       onclick="switchSigTab('signal')">&#x26A1; Sinyal</div>
+        <div class="mm-tab"        data-t="technical"    onclick="switchSigTab('technical')">&#x1F4CA; Teknik</div>
+        <div class="mm-tab"        data-t="fundamentals" onclick="switchSigTab('fundamentals')">&#x1F4CB; Temel</div>
+        <div class="mm-tab"        data-t="whale"        onclick="switchSigTab('whale')">&#x1F433; Balina</div>
+        <div class="mm-tab"        data-t="news"         onclick="switchSigTab('news')">&#x1F4F0; Haberler</div>
+        <div class="mm-tab"        data-t="orderbook"    onclick="switchSigTab('orderbook')">&#x1F4D6; Emir</div>
       </div>
-      <!-- Orderbook -->
-      <div class="mm-card" style="padding:0">
-        <div style="padding:10px 14px 6px;font-family:'IBM Plex Mono',monospace;font-size:.58rem;font-weight:700;color:var(--t4);text-transform:uppercase;letter-spacing:1px">Order Book</div>
-        <div class="mm-ob">
-          <div class="mm-ob-col">
-            <div class="mm-ob-hdr g">BID (Alış)</div>
-            <div id="obBids"></div>
-          </div>
-          <div class="mm-ob-col">
-            <div class="mm-ob-hdr r">ASK (Satış)</div>
-            <div id="obAsks"></div>
+      <!-- Tab panes -->
+      <div class="mm-tab-body">
+        <div class="mm-pane active" id="bt-signal"></div>
+        <div class="mm-pane"        id="bt-technical"></div>
+        <div class="mm-pane"        id="bt-fundamentals"></div>
+        <div class="mm-pane"        id="bt-whale"></div>
+        <div class="mm-pane"        id="bt-news"></div>
+        <div class="mm-pane"        id="bt-orderbook">
+          <div class="mm-ob" style="border:none">
+            <div class="mm-ob-col">
+              <div class="mm-ob-hdr g">BID (Alış)</div>
+              <div id="obBids"></div>
+            </div>
+            <div class="mm-ob-col">
+              <div class="mm-ob-hdr r">ASK (Satış)</div>
+              <div id="obAsks"></div>
+            </div>
           </div>
         </div>
       </div>
@@ -827,18 +827,56 @@ function updateRow(symbol, exchange) {
 /* ═══════════════════════════════════════
    BOT DRAWER
 ═══════════════════════════════════════ */
-function openBotDrawer(key) {
+function openBotDrawer(key) { openSignalModal(key); }
+function openMktDrawer(key) { openSignalModal(key); }
+
+function openSignalModal(key) {
   var s = signals.get(key);
   if(!s) return;
+  var cacheKey = s.symbol+'_'+s.exchange;
+  _mktSym  = s.symbol;
+  _mktEx   = s.exchange;
+  _mktType = mktTypes.get(cacheKey)||'SPOT';
+  _curTf   = s.timeframe||'15m';
+
   var side = s.side||'LONG';
   var sc   = side==='LONG'?'long':'short';
-  document.getElementById('botDrawerTitle').innerHTML =
-    '<span style="color:var(--yellow)">'+s.symbol+'</span>'+
-    '<span class="badge '+sc+'" style="font-size:.6rem">'+side+'</span>';
+  var px   = livePx.get(cacheKey);
+  var priceHtml = px ?
+    '<span class="mm-price">'+fmtPrice(px.price)+'</span>'+
+    '<span class="mm-chg '+(px.change>=0?'pos':'neg')+'">'+(px.change>=0?'+':'')+px.change.toFixed(2)+'%</span>' : '';
+
+  document.getElementById('mktDrawerTitle').innerHTML =
+    '<span class="mm-sym-name">'+s.symbol+'</span>'+
+    '<span class="badge '+((_mktType==='PERP')?'perp':'spot')+'" style="font-size:.6rem">'+_mktType+'</span>'+
+    '<span class="badge exch" style="font-size:.6rem">'+s.exchange.toUpperCase()+'</span>'+
+    '<span class="badge '+sc+'" style="font-size:.6rem">'+side+'</span>'+
+    priceHtml;
+
+  document.querySelectorAll('.mm-tf-btn').forEach(function(b){
+    b.classList.toggle('active', b.textContent===_curTf);
+  });
+
   fillBotTabs(s);
-  switchBotTab('signal');
-  document.getElementById('botDrawer').classList.add('open');
+  switchSigTab('signal');
+
+  // Why lines below chart (left side)
+  var whyWrap = document.getElementById('mmWhy');
+  var whyLines = s.why_lines||[];
+  if(whyLines.length) {
+    document.getElementById('mmWhyLines').innerHTML = whyLines.map(function(l){
+      return '<div class="mm-why-line">\u2022 '+l+'</div>';
+    }).join('');
+    whyWrap.style.display = '';
+  } else {
+    whyWrap.style.display = 'none';
+  }
+
+  document.getElementById('mktDrawer').classList.add('open');
   document.getElementById('overlay').classList.add('show');
+
+  loadChart(_mktSym, _mktEx, _mktType, _curTf);
+  loadMarket(_mktSym, _mktEx, _mktType);
 }
 
 function fillBotTabs(s) {
@@ -920,89 +958,22 @@ function fillBotTabs(s) {
     '<div class="d-section"><div style="font-size:.78rem;color:var(--t3);line-height:1.7">Gerçek zamanlı haber entegrasyonu yakında eklenecek.</div></div>';
 }
 
-function switchBotTab(name) {
-  document.querySelectorAll('#botDrawer .dtab').forEach(function(t){
+function switchSigTab(name) {
+  document.querySelectorAll('.mm-tab').forEach(function(t){
     t.classList.toggle('active', t.dataset.t===name);
   });
-  ['signal','technical','fundamentals','whale','news'].forEach(function(n){
+  ['signal','technical','fundamentals','whale','news','orderbook'].forEach(function(n){
     var el=document.getElementById('bt-'+n);
     if(el) el.classList.toggle('active', n===name);
   });
 }
 
-function closeBot() {
-  document.getElementById('botDrawer').classList.remove('open');
-  document.getElementById('overlay').classList.remove('show');
-}
+function switchBotTab(name) { switchSigTab(name); }
+function closeBot() { closeMkt(); }
 
 /* ═══════════════════════════════════════
    MARKET MODAL
 ═══════════════════════════════════════ */
-function openMktDrawer(key) {
-  var s = signals.get(key);
-  if(!s) return;
-  var cacheKey = s.symbol+'_'+s.exchange;
-  _mktSym  = s.symbol;
-  _mktEx   = s.exchange;
-  _mktType = mktTypes.get(cacheKey)||'SPOT';
-  _curTf   = s.timeframe||'15m';
-
-  // Header
-  var mtype = _mktType;
-  var side  = s.side||'LONG';
-  var sc    = side==='LONG'?'long':'short';
-  var px    = livePx.get(cacheKey);
-  var priceHtml = px ?
-    '<span class="mm-price">'+fmtPrice(px.price)+'</span>'+
-    '<span class="mm-chg '+(px.change>=0?'pos':'neg')+'">'+(px.change>=0?'+':'')+px.change.toFixed(2)+'%</span>' : '';
-
-  document.getElementById('mktDrawerTitle').innerHTML =
-    '<span class="mm-sym-name">'+s.symbol+'</span>'+
-    '<span class="badge '+(mtype==='PERP'?'perp':'spot')+'" style="font-size:.6rem">'+mtype+'</span>'+
-    '<span class="badge exch" style="font-size:.6rem">'+s.exchange.toUpperCase()+'</span>'+
-    '<span class="badge '+sc+'" style="font-size:.6rem">'+side+'</span>'+
-    priceHtml;
-
-  // TF button
-  document.querySelectorAll('.mm-tf-btn').forEach(function(b){
-    b.classList.toggle('active', b.textContent===_curTf);
-  });
-
-  // Bot signal right card
-  var botCard = document.getElementById('mmBotCard');
-  var score = s.opportunity_score||0;
-  var sc_c  = score>=70?'var(--green)':score>=50?'var(--ydark)':'var(--t3)';
-  document.getElementById('mmBotData').innerHTML =
-    mmkv('Skor','<span style="color:'+sc_c+'">⚡ '+score+'</span>')+
-    mmkv('Yön','<span class="badge '+sc+'" style="font-size:.6rem">'+side+'</span>')+
-    mmkv('Timeframe',s.timeframe||'—')+
-    '<div style="border-top:1px solid var(--border);margin:7px 0"></div>'+
-    mmkv('Giriş Alt',fmt(s.entry_low),'y')+
-    mmkv('Giriş Üst',fmt(s.entry_high),'y')+
-    mmkv('Stop Loss',fmt(s.stop_loss),'r')+
-    mmkv('TP1 ['+(s.tp1_tf||'—')+']',fmt(s.tp1),'g')+
-    mmkv('TP2 ['+(s.tp2_tf||'—')+']',fmt(s.tp2),'g')+
-    mmkv('TP3 ['+(s.tp3_tf||'—')+']',fmt(s.tp3),'g');
-  botCard.style.display = '';
-
-  // Why lines below chart
-  var whyWrap = document.getElementById('mmWhy');
-  var whyLines = s.why_lines||[];
-  if(whyLines.length) {
-    document.getElementById('mmWhyLines').innerHTML = whyLines.map(function(l){
-      return '<div class="mm-why-line">• '+l+'</div>';
-    }).join('');
-    whyWrap.style.display = '';
-  } else {
-    whyWrap.style.display = 'none';
-  }
-
-  document.getElementById('mktDrawer').classList.add('open');
-  document.getElementById('overlay').classList.add('show');
-
-  loadChart(_mktSym, _mktEx, _mktType, _curTf);
-  loadMarket(_mktSym, _mktEx, _mktType);
-}
 
 function closeMkt() {
   document.getElementById('mktDrawer').classList.remove('open');
@@ -1115,11 +1086,17 @@ async function loadMarket(symbol, exchange, mtype) {
       var td = await tr.json();
       var px = ex.parseTicker(td);
       if(px) {
+        var chgCls = px.change>=0?'g':'r';
+        var chgPfx = px.change>=0?'+':'';
         document.getElementById('mmMarketData').innerHTML =
-          mmkv('Canlı Fiyat', fmtPrice(px.price))+
-          mmkv('24s Değişim', (px.change>=0?'+':'')+px.change.toFixed(2)+'%', px.change>=0?'g':'r')+
-          mmkv('24s Hacim', fmtVol(px.vol))+
-          mmkv('Piyasa', mtype, mtype==='PERP'?'w':'b');
+          '<div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap">'+
+            '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:1rem;font-weight:800;color:var(--t1)">'+fmtPrice(px.price)+'</span>'+
+            '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:.8rem;font-weight:700;color:var(--'+(px.change>=0?'green':'red')+')">'+chgPfx+px.change.toFixed(2)+'%</span>'+
+          '</div>'+
+          '<div style="display:flex;gap:12px;margin-top:5px;flex-wrap:wrap">'+
+            mmkv('Hacim',fmtVol(px.vol))+
+            mmkv('Piyasa',mtype,mtype==='PERP'?'w':'b')+
+          '</div>';
       }
     }
   } catch(e) {}
