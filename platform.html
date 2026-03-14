@@ -193,13 +193,14 @@ td{padding:9px 12px;vertical-align:middle;white-space:nowrap}
 .mm-body{display:flex;flex:1;overflow:hidden;min-height:0}
 .mm-left{flex:1;min-width:0;display:flex;flex-direction:column;border-right:1px solid var(--border)}
 .mm-right{width:320px;flex-shrink:0;overflow-y:hidden;display:flex;flex-direction:column;gap:0}
-/* Left: TF bar + chart + signal why */
-.mm-tf{display:flex;gap:4px;padding:7px 14px;border-bottom:1px solid var(--border);
-  background:var(--surface);flex-shrink:0}
+/* Left: TF bar + tab butonları yan yana */
+.mm-tf{display:flex;align-items:center;flex-wrap:wrap;gap:4px;padding:7px 12px;
+  border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0}
 .mm-tf-btn{padding:3px 9px;font-family:'IBM Plex Mono',monospace;font-size:.65rem;font-weight:700;
   color:var(--t3);border:1px solid var(--border);border-radius:4px;background:none;cursor:pointer;transition:all .1s}
 .mm-tf-btn:hover{border-color:var(--border2);color:var(--t1)}
 .mm-tf-btn.active{background:var(--yellow);border-color:var(--yellow);color:#1e2329}
+.mm-tf-sep{width:1px;height:20px;background:var(--border2);margin:0 5px;flex-shrink:0}
 .mm-chart-wrap{position:relative;flex:1;min-height:0;background:#131722}
 .mm-chart-loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
   font-family:'IBM Plex Mono',monospace;font-size:.72rem;color:#848e9c}
@@ -209,12 +210,11 @@ td{padding:9px 12px;vertical-align:middle;white-space:nowrap}
 .mm-why-title{font-family:'IBM Plex Mono',monospace;font-size:.58rem;font-weight:700;color:var(--t4);
   text-transform:uppercase;letter-spacing:1px;margin-bottom:6px}
 .mm-why-line{font-size:.76rem;color:var(--t2);line-height:1.55;padding:2px 0}
-/* Right: mini market data + tabs */
+/* Right: mini market data */
 .mm-mkt-mini{padding:10px 14px;border-bottom:1px solid var(--border);flex-shrink:0;background:var(--surface)}
-.mm-tabs{display:flex;flex-wrap:wrap;gap:5px;padding:10px 12px;border-bottom:1px solid var(--border);
-  flex-shrink:0;background:var(--card)}
-.mm-tab{padding:5px 12px;font-size:.68rem;font-weight:600;color:var(--t3);cursor:pointer;
-  border:1px solid var(--border);border-radius:6px;background:var(--surface);
+/* Sekme butonları — TF barında yan yana */
+.mm-tab{padding:3px 10px;font-size:.65rem;font-weight:600;color:var(--t3);cursor:pointer;
+  border:1px solid var(--border);border-radius:5px;background:var(--card);
   white-space:nowrap;transition:all .15s;flex-shrink:0;user-select:none}
 .mm-tab:hover{border-color:var(--border2);color:var(--t1);background:var(--hover)}
 .mm-tab.active{background:var(--yellow);border-color:var(--yellow);color:#1e2329;font-weight:700}
@@ -410,6 +410,13 @@ td{padding:9px 12px;vertical-align:middle;white-space:nowrap}
         <button class="mm-tf-btn" onclick="changeTf('1h')">1h</button>
         <button class="mm-tf-btn" onclick="changeTf('4h')">4h</button>
         <button class="mm-tf-btn" onclick="changeTf('1d')">1d</button>
+        <div class="mm-tf-sep"></div>
+        <div class="mm-tab active" data-t="signal"       onclick="switchSigTab('signal')">Sinyal</div>
+        <div class="mm-tab"        data-t="technical"    onclick="switchSigTab('technical')">Teknik</div>
+        <div class="mm-tab"        data-t="fundamentals" onclick="switchSigTab('fundamentals')">Temel</div>
+        <div class="mm-tab"        data-t="whale"        onclick="switchSigTab('whale')">Balina</div>
+        <div class="mm-tab"        data-t="news"         onclick="switchSigTab('news')">Haberler</div>
+        <div class="mm-tab"        data-t="orderbook"    onclick="switchSigTab('orderbook')">Emir</div>
       </div>
       <div class="mm-chart-wrap" id="chartContainer">
         <div class="mm-chart-loading" id="chartLoading">Grafik yükleniyor...</div>
@@ -425,15 +432,6 @@ td{padding:9px 12px;vertical-align:middle;white-space:nowrap}
       <!-- Mini market data -->
       <div class="mm-mkt-mini" id="mmMarketData">
         <div style="color:var(--t4);font-size:.72rem">Yükleniyor...</div>
-      </div>
-      <!-- Tabs -->
-      <div class="mm-tabs">
-        <div class="mm-tab active" data-t="signal"       onclick="switchSigTab('signal')">Sinyal</div>
-        <div class="mm-tab"        data-t="technical"    onclick="switchSigTab('technical')">Teknik</div>
-        <div class="mm-tab"        data-t="fundamentals" onclick="switchSigTab('fundamentals')">Temel</div>
-        <div class="mm-tab"        data-t="whale"        onclick="switchSigTab('whale')">Balina</div>
-        <div class="mm-tab"        data-t="news"         onclick="switchSigTab('news')">Haberler</div>
-        <div class="mm-tab"        data-t="orderbook"    onclick="switchSigTab('orderbook')">Emir Def.</div>
       </div>
       <!-- Tab panes -->
       <div class="mm-tab-body">
@@ -766,10 +764,14 @@ function renderPinboard() {
     var px      = livePx.get(cacheKey);
     var mtype   = mktTypes.get(cacheKey)||'';
     var exLbl   = (s.exchange||'binance').slice(0,3).toUpperCase()+(mtype?'·'+mtype:'');
-    var entry   = s.entry_low ? fmt(s.entry_low) : '—';
-    var pxStr   = px ? fmtPrice(px.price) : '—';
-    var chgStr  = px ? (px.change>=0?'+':'')+px.change.toFixed(1)+'%' : '—';
-    var chgCls  = px ? (px.change>=0?'g':'r') : '';
+    var entry   = fmtC(s.entry_low);
+    var stopL   = fmtC(s.stop_loss);
+    var tp1     = fmtC(s.tp1);
+    var hasPx   = px && typeof px.price==='number' && !isNaN(px.price);
+    var hasChg  = px && typeof px.change==='number' && !isNaN(px.change);
+    var pxStr   = hasPx  ? fmtC(px.price) : '—';
+    var chgStr  = hasChg ? (px.change>=0?'+':'')+px.change.toFixed(1)+'%' : '—';
+    var chgCls  = hasChg ? (px.change>=0?'g':'r') : '';
 
     return '<div class="pb-card '+sc+'" onclick="openSignalModal(\''+s._key+'\')">'+
       '<div class="pb-row1">'+
@@ -781,10 +783,13 @@ function renderPinboard() {
       '</div>'+
       '<div class="pb-row2">'+
         '<div class="pb-cell"><div class="pb-ck">Giriş</div><div class="pb-cv y">'+entry+'</div></div>'+
-        '<div class="pb-cell"><div class="pb-ck">Stop</div><div class="pb-cv r">'+fmt(s.stop_loss)+'</div></div>'+
-        '<div class="pb-cell"><div class="pb-ck">TP1</div><div class="pb-cv g">'+fmt(s.tp1)+'</div></div>'+
-        '<div class="pb-cell"><div class="pb-ck">Fiyat</div><div class="pb-cv '+chgCls+'">'+pxStr+'</div></div>'+
-        '<div class="pb-cell"><div class="pb-ck">24s</div><div class="pb-cv '+chgCls+'">'+chgStr+'</div></div>'+
+        '<div class="pb-cell"><div class="pb-ck">Stop</div><div class="pb-cv r">'+stopL+'</div></div>'+
+        '<div class="pb-cell"><div class="pb-ck">TP1</div><div class="pb-cv g">'+tp1+'</div></div>'+
+        '<div class="pb-cell"><div class="pb-ck">Fiyat / 24s</div>'+
+          '<div class="pb-cv '+(hasPx?chgCls:'')+'">'+pxStr+
+            (hasChg?'<span style="font-size:.6rem;margin-left:3px;opacity:.8">'+chgStr+'</span>':'')+
+          '</div>'+
+        '</div>'+
       '</div>'+
     '</div>';
   }).join('');
@@ -1188,6 +1193,19 @@ function fmt(v) {
   if(n>=1000) return n.toFixed(2);
   if(n>=1)    return n.toFixed(4);
   return n.toFixed(6);
+}
+// Kart içi kısa format — max 6 karakter
+function fmtC(v) {
+  if(v===undefined||v===null) return '—';
+  var n=Number(v); if(isNaN(n)) return '—';
+  if(n>=10000) return (n/1000).toFixed(1)+'K';
+  if(n>=1000)  return n.toFixed(0);
+  if(n>=100)   return n.toFixed(1);
+  if(n>=10)    return n.toFixed(2);
+  if(n>=1)     return n.toFixed(3);
+  if(n>=0.1)   return n.toFixed(4);
+  if(n>=0.01)  return n.toFixed(4);
+  return n.toFixed(5);
 }
 function fmtPrice(v) {
   if(!v) return '\u2014';
