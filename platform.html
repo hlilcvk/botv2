@@ -65,22 +65,44 @@ body{background:var(--bg);color:var(--t1);font-family:'Inter',sans-serif;min-hei
 .pinboard{background:var(--card);border-bottom:1px solid var(--border);
   padding:10px 20px;position:sticky;top:57px;z-index:99;flex-shrink:0}
 .pb-label{font-family:'IBM Plex Mono',monospace;font-size:.6rem;font-weight:700;
-  color:var(--t4);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:7px}
-.pb-strip{display:flex;gap:7px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}
+  color:var(--t4);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px}
+.pb-strip{display:flex;gap:10px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}
 .pb-strip::-webkit-scrollbar{display:none}
-.pb-pill{display:flex;align-items:center;gap:6px;padding:5px 11px;flex-shrink:0;
-  background:var(--surface);border:1px solid var(--border);border-radius:20px;
-  cursor:pointer;transition:border-color .15s,background .15s;font-size:.72rem}
-.pb-pill:hover{border-color:var(--border2);background:var(--hover)}
-.pb-pill.long{border-color:rgba(14,203,129,.3);background:rgba(14,203,129,.05)}
-.pb-pill.short{border-color:rgba(246,70,93,.3);background:rgba(246,70,93,.04)}
-.pb-sym{font-weight:700;font-size:.75rem;color:var(--t1)}
-.pb-side{font-size:.65rem;font-weight:700;padding:2px 6px;border-radius:4px}
-.pb-side.long{background:var(--gbg);color:var(--green)}
-.pb-side.short{background:var(--rbg);color:var(--red)}
-.pb-score{font-family:'IBM Plex Mono',monospace;font-size:.68rem;color:var(--ydark);font-weight:700}
+
+/* card */
+.pb-card{display:flex;flex-direction:column;gap:0;min-width:185px;flex-shrink:0;
+  background:var(--surface);border:1px solid var(--border);border-radius:10px;
+  cursor:pointer;transition:border-color .15s,box-shadow .15s;overflow:hidden}
+.pb-card:hover{border-color:var(--border2);box-shadow:0 2px 10px rgba(0,0,0,.07)}
+.pb-card.long{border-color:rgba(14,203,129,.35);background:rgba(14,203,129,.03)}
+.pb-card.short{border-color:rgba(246,70,93,.3); background:rgba(246,70,93,.03)}
+.pb-card-top{display:flex;align-items:center;justify-content:space-between;
+  padding:9px 11px 6px}
+.pb-sym{font-weight:800;font-size:.88rem;color:var(--t1);letter-spacing:.3px}
+.pb-side{font-size:.62rem;font-weight:700;padding:2px 7px;border-radius:5px}
+.pb-side.long {background:var(--gbg); color:var(--green)}
+.pb-side.short{background:var(--rbg); color:var(--red)}
+.pb-card-mid{display:flex;align-items:center;gap:7px;padding:0 11px 6px}
+.pb-score{font-family:'IBM Plex Mono',monospace;font-size:.75rem;color:var(--ydark);font-weight:800}
+.pb-tf{font-family:'IBM Plex Mono',monospace;font-size:.62rem;color:var(--t4);
+  background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:1px 5px}
+.pb-exbadge{font-family:'IBM Plex Mono',monospace;font-size:.58rem;color:var(--t3);
+  background:var(--hover);border:1px solid var(--border);border-radius:4px;padding:1px 5px}
+.pb-card-levels{border-top:1px solid var(--border);padding:7px 11px;
+  display:grid;grid-template-columns:1fr 1fr;gap:4px 10px}
+.pbl{display:flex;flex-direction:column}
+.pbl-k{font-family:'IBM Plex Mono',monospace;font-size:.54rem;color:var(--t4);
+  text-transform:uppercase;letter-spacing:.6px;margin-bottom:1px}
+.pbl-v{font-family:'IBM Plex Mono',monospace;font-size:.72rem;font-weight:700}
+.pbl-v.g{color:var(--green)}.pbl-v.r{color:var(--red)}.pbl-v.y{color:var(--ydark)}
+.pb-card-px{border-top:1px solid var(--border);padding:5px 11px;
+  display:flex;align-items:center;justify-content:space-between}
+.pb-live-px{font-family:'IBM Plex Mono',monospace;font-size:.72rem;font-weight:700;color:var(--t1)}
+.pb-live-chg{font-family:'IBM Plex Mono',monospace;font-size:.65rem;font-weight:600}
+.pb-live-chg.pos{color:var(--green)}.pb-live-chg.neg{color:var(--red)}
+
 .pb-empty{font-family:'IBM Plex Mono',monospace;font-size:.72rem;color:var(--t4);
-  font-style:italic;padding:2px 0}
+  font-style:italic;padding:4px 0;align-self:center}
 
 /* ── Main table area ── */
 .main{padding:20px;max-width:1400px;margin:0 auto}
@@ -438,6 +460,8 @@ var livePx    = new Map();   // "SYM_EXCHANGE" → {price, change, vol}
 var mktTypes  = new Map();   // "SYM_EXCHANGE" → 'PERP'|'SPOT'
 var totalSig=0, totalLong=0, totalShort=0;
 var _tickerPoll = null;
+var _binSpotWS  = null;   // Binance spot websocket
+var _binPerpWS  = null;   // Binance perp websocket
 var _chartObj   = null;
 var _chartSeries = null;
 var _mktSym = null, _mktEx = null, _mktType = null, _curTf = '15m';
@@ -499,10 +523,12 @@ function ingest(sig, isNew) {
     detectMarketType(sig.symbol, sig.exchange).then(function(t) {
       mktTypes.set(cacheKey, t);
       renderTable();
+      // Connect/reconnect Binance WS now that we know the type
+      if(sig.exchange==='binance') reconnectBinanceWS();
     });
   }
-  // Start polling for this symbol
-  schedulePoll();
+  // Start polling for non-Binance; Binance will use WS
+  scheduleNonBinancePoll();
 }
 
 async function detectMarketType(symbol, exchange) {
@@ -516,16 +542,93 @@ async function detectMarketType(symbol, exchange) {
 }
 
 /* ═══════════════════════════════════════
-   LIVE PRICE POLLING (REST)
+   BINANCE WEBSOCKET (spot + perp)
 ═══════════════════════════════════════ */
-function schedulePoll() {
-  clearInterval(_tickerPoll);
-  _tickerPoll = setInterval(pollPrices, 6000);
-  pollPrices();
+function reconnectBinanceWS() {
+  // Spot WS — if any binance SPOT signals exist
+  var hasBinSpot = false, hasBinPerp = false;
+  signals.forEach(function(sig) {
+    if(sig.exchange!=='binance') return;
+    var t = mktTypes.get(sig.symbol+'_binance');
+    if(t==='PERP') hasBinPerp=true; else hasBinSpot=true;
+  });
+
+  if(hasBinSpot) {
+    if(!_binSpotWS || _binSpotWS.readyState > 1) {
+      if(_binSpotWS) try{_binSpotWS.close();}catch(e){}
+      _binSpotWS = new WebSocket('wss://stream.binance.com:9443/ws/!miniTicker@arr');
+      _binSpotWS.onmessage = function(ev) {
+        try {
+          var arr = JSON.parse(ev.data);
+          arr.forEach(function(t) {
+            var sym = t.s; // e.g. BTCUSDT
+            signals.forEach(function(sig) {
+              if(sig.exchange!=='binance') return;
+              var mtype = mktTypes.get(sig.symbol+'_binance');
+              if(mtype==='PERP') return;
+              if(EX.binance.toSym(sig.symbol)===sym) {
+                var ck = sig.symbol+'_binance';
+                var prev = livePx.get(ck)||{};
+                livePx.set(ck, {
+                  price:  parseFloat(t.c),
+                  change: parseFloat(t.P),
+                  vol:    parseFloat(t.q),
+                });
+                renderPinboard();
+                updateRow(sig.symbol, 'binance');
+              }
+            });
+          });
+        } catch(e){}
+      };
+      _binSpotWS.onclose = function() { setTimeout(reconnectBinanceWS, 3000); };
+    }
+  }
+
+  if(hasBinPerp) {
+    if(!_binPerpWS || _binPerpWS.readyState > 1) {
+      if(_binPerpWS) try{_binPerpWS.close();}catch(e){}
+      _binPerpWS = new WebSocket('wss://fstream.binance.com/ws/!miniTicker@arr');
+      _binPerpWS.onmessage = function(ev) {
+        try {
+          var arr = JSON.parse(ev.data);
+          arr.forEach(function(t) {
+            var sym = t.s;
+            signals.forEach(function(sig) {
+              if(sig.exchange!=='binance') return;
+              var mtype = mktTypes.get(sig.symbol+'_binance');
+              if(mtype!=='PERP') return;
+              if(EX.binance.toSym(sig.symbol)===sym) {
+                var ck = sig.symbol+'_binance';
+                livePx.set(ck, {
+                  price:  parseFloat(t.c),
+                  change: parseFloat(t.P),
+                  vol:    parseFloat(t.q),
+                });
+                renderPinboard();
+                updateRow(sig.symbol, 'binance');
+              }
+            });
+          });
+        } catch(e){}
+      };
+      _binPerpWS.onclose = function() { setTimeout(reconnectBinanceWS, 3000); };
+    }
+  }
 }
 
-function pollPrices() {
+/* ═══════════════════════════════════════
+   NON-BINANCE POLLING (REST)
+═══════════════════════════════════════ */
+function scheduleNonBinancePoll() {
+  clearInterval(_tickerPoll);
+  _tickerPoll = setInterval(pollNonBinance, 6000);
+  pollNonBinance();
+}
+
+function pollNonBinance() {
   signals.forEach(function(sig) {
+    if(sig.exchange==='binance') return;  // handled by WS
     fetchTicker(sig.symbol, sig.exchange);
   });
 }
@@ -564,13 +667,48 @@ function renderPinboard() {
     return;
   }
   strip.innerHTML = sigs.map(function(s) {
-    var sc = s.side==='LONG'?'long':'short';
-    var sym = (s.symbol||'').replace('/USDT','');
-    return '<div class="pb-pill '+sc+'" onclick="openBotDrawer(\''+s._key+'\')">' +
-      '<span class="pb-sym">'+sym+'</span>' +
-      '<span class="pb-side '+sc+'">'+s.side+'</span>' +
-      '<span class="pb-score">'+s.opportunity_score+'</span>' +
-      '</div>';
+    var sc      = s.side==='LONG'?'long':'short';
+    var sym     = (s.symbol||'').replace('/USDT','');
+    var score   = s.opportunity_score||0;
+    var sc_c    = score>=70?'var(--green)':score>=50?'var(--ydark)':'var(--t3)';
+    var cacheKey= s.symbol+'_'+s.exchange;
+    var px      = livePx.get(cacheKey);
+    var mtype   = mktTypes.get(cacheKey)||'';
+    var exLbl   = (s.exchange||'').toUpperCase()+(mtype?' · '+mtype:'');
+
+    // entry zone
+    var entryLow = fmt(s.entry_low), entryHi = fmt(s.entry_high);
+    var entryStr = (s.entry_low&&s.entry_high) ? entryLow+'–'+entryHi : (fmt(s.entry_low)||'—');
+
+    var pxHtml = '';
+    if(px) {
+      var chgCls = px.change>=0?'pos':'neg';
+      var chgPfx = px.change>=0?'+':'';
+      pxHtml =
+        '<div class="pb-card-px">'+
+          '<span class="pb-live-px">'+fmtPrice(px.price)+'</span>'+
+          '<span class="pb-live-chg '+chgCls+'">'+chgPfx+px.change.toFixed(2)+'%</span>'+
+        '</div>';
+    }
+
+    return '<div class="pb-card '+sc+'" onclick="openBotDrawer(\''+s._key+'\')">'+
+      '<div class="pb-card-top">'+
+        '<span class="pb-sym">'+sym+'</span>'+
+        '<span class="pb-side '+sc+'">'+s.side+'</span>'+
+      '</div>'+
+      '<div class="pb-card-mid">'+
+        '<span class="pb-score" style="color:'+sc_c+'">⚡'+score+'</span>'+
+        '<span class="pb-tf">'+(s.timeframe||'—')+'</span>'+
+        '<span class="pb-exbadge">'+exLbl+'</span>'+
+      '</div>'+
+      '<div class="pb-card-levels">'+
+        '<div class="pbl"><div class="pbl-k">Giriş</div><div class="pbl-v y">'+entryStr+'</div></div>'+
+        '<div class="pbl"><div class="pbl-k">Stop</div><div class="pbl-v r">'+fmt(s.stop_loss)+'</div></div>'+
+        '<div class="pbl"><div class="pbl-k">TP1</div><div class="pbl-v g">'+fmt(s.tp1)+'</div></div>'+
+        '<div class="pbl"><div class="pbl-k">TP2</div><div class="pbl-v g">'+fmt(s.tp2)+'</div></div>'+
+      '</div>'+
+      pxHtml+
+    '</div>';
   }).join('');
 }
 
@@ -1035,6 +1173,7 @@ function showToastHtml(html, onclick) {
 })();
 
 connectBot();
+reconnectBinanceWS();
 </script>
 </body>
 </html>
