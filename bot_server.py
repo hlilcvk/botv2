@@ -650,11 +650,15 @@ def _compute_signals_sync(cfg: dict, engine: dict) -> dict:
                 print(f"[tp_matrix] {signal.symbol} {tf_s}: {e}")
 
         current_price = float(df.iloc[-1]["close"])
-        # ATR: klines_by_tf'den al (df ham olduğundan "atr" sütunu olmayabilir)
-        _atr_df = (klines_by_tf.get(signal.timeframe)
-                   or klines_by_tf.get("15m")
-                   or klines_by_tf.get("5m")
-                   or (next(iter(klines_by_tf.values()), None) if klines_by_tf else None))
+        # ATR: klines_by_tf'den al — DataFrame'lerde 'or' kullanma, is not None kullan
+        _atr_df = None
+        for _tf_key in [signal.timeframe, "15m", "5m"]:
+            _candidate = klines_by_tf.get(_tf_key)
+            if _candidate is not None:
+                _atr_df = _candidate
+                break
+        if _atr_df is None and klines_by_tf:
+            _atr_df = next(iter(klines_by_tf.values()))
         if _atr_df is not None:
             atr_val = float(_atr_df.iloc[-1]["atr"])
         else:

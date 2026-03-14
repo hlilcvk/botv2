@@ -509,8 +509,14 @@ def build_tp_matrix_structural(
                 all_levels.append({"price": z["mid"], "tf": tf, "source": "VOB", "vol_ratio": z["vol_ratio"]})
 
     # ── Yapısal stop loss ─────────────────────────────────────────────────────
-    primary_df = (klines_by_tf.get("15m") or klines_by_tf.get("5m")
-                  or (next(iter(klines_by_tf.values()), None) if klines_by_tf else None))
+    primary_df = None
+    for _k in ["15m", "5m"]:
+        _c = klines_by_tf.get(_k)
+        if _c is not None:
+            primary_df = _c
+            break
+    if primary_df is None and klines_by_tf:
+        primary_df = next(iter(klines_by_tf.values()))
     if primary_df is not None:
         stop_price = compute_stop_loss_structural(direction, current_price, primary_df, atr)
     else:
