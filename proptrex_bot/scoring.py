@@ -201,34 +201,380 @@ def accumulation_distribution_score(
     return min(100.0, accumulation), min(100.0, distribution)
 
 
+# ── Structural TP/SL constants ────────────────────────────────────────────────
+_TF_WEIGHT = {"4h": 4.0, "1h": 3.0, "15m": 2.0, "5m": 1.0}
+_SOURCE_BONUS = {"EQUAL_LEVEL": 1.5, "VOB": 1.3, "SWING": 1.0, "FVG": 0.8}
+
+
+def find_swings(df: pd.DataFrame, left_bars: int = 5, right_bars: int = 5) -> List[dict]:
+    """5-bar pivot detection: swing high/low seviyeleri."""
+    highs = df["high"].values
+    lows = df["low"].values
+    swings: List[dict] = []
+    for i in range(left_bars, len(df) - right_bars):
+        is_high = all(highs[i] > highs[i - j] for j in range(1, left_bars + 1)) and \
+                  all(highs[i] > highs[i + j] for j in range(1, right_bars + 1))
+        is_low  = all(lows[i]  < lows[i - j]  for j in range(1, left_bars + 1)) and \
+                  all(lows[i]  < lows[i + j]  for j in range(1, right_bars + 1))
+        if is_high:
+            swings.append({"price": float(highs[i]), "type": "RESISTANCE", "bar": i, "source": "SWING"})
+        if is_low:
+            swings.append({"price": float(lows[i]),  "type": "SUPPORT",    "bar": i, "source": "SWING"})
+    return swings
+
+
+def find_equal_levels(swings: List[dict], threshold: float = 0.002) -> List[dict]:
+    """Birbirine yakın 2+ swing = likidite havuzu (equal highs/lows)."""
+    clusters: List[dict] = []
+    for i in range(len(swings)):
+        for j in range(i + 1, len(swings)):
+            if swings[i]["type"] != swings[j]["type"]:
+                continue
+            diff = abs(swings[i]["price"] - swings[j]["price"]) / (swings[i]["price"] + 1e-9)
+            if diff < threshold:
+                clusters.append({
+                    "price": (swings[i]["price"] + swings[j]["price"]) / 2,
+                    "type":   swings[i]["type"],
+                    "strength": 2,
+                    "source": "EQUAL_LEVEL",
+                })
+    return clusters
+
+
+def find_fvg(df: pd.DataFrame) -> List[dict]:
+    """Fair Value Gap tespiti: 3-mum pattern ile oluşan boşluklar."""
+    highs = df["high"].values
+    lows  = df["low"].values
+    closes = df["close"].values
+    last_price = float(closes[-1])
+    gaps: List[dict] = []
+
+    for i in range(2, len(df)):
+        # Bullish FVG: 3. mumun dibi > 1. mumun tepesi
+        if lows[i] > highs[i - 2]:
+            gaps.append({
+                "upper": float(lows[i]),
+                "lower": float(highs[i - 2]),
+                "mid":   float((lows[i] + highs[i - 2]) / 2),
+                "type":  "BULL_FVG",
+                "bar":   i,
+            })
+        # Bearish FVG: 3. mumun tepesi < 1. mumun dibi
+        if highs[i] < lows[i - 2]:
+            gaps.append({
+                "upper": float(lows[i - 2]),
+                "lower": float(highs[i]),
+                "mid":   float((lows[i - 2] + highs[i]) / 2),
+                "type":  "BEAR_FVG",
+                "bar":   i,
+            })
+
+    # Henüz doldurulmamış gap'leri döndür
+    result = []
+    for g in gaps:
+        if g["type"] == "BULL_FVG" and last_price < g["lower"]:
+            result.append(g)
+        elif g["type"] == "BEAR_FVG" and last_price > g["upper"]:
+            result.append(g)
+    return result
+
+
+def find_vob(df: pd.DataFrame) -> List[dict]:
+    """Volume Order Block: yüksek hacimli güçlü gövdeli mumlar = kurumsal emir bölgeleri."""
+    if len(df) < 5:
+        return []
+    opens   = df["open"].values
+    highs   = df["high"].values
+    lows    = df["low"].values
+    closes  = df["close"].values
+    volumes = df["volume"].values
+    avg_vol = float(np.mean(volumes))
+    if avg_vol <= 0:
+        return []
+
+    zones: List[dict] = []
+    last_price = float(closes[-1])
+
+    for i in range(2, len(df) - 1):
+        if volumes[i] < avg_vol * 1.5:
+            continue
+        body  = abs(closes[i] - opens[i])
+        candle_range = highs[i] - lows[i]
+        if candle_range <= 0 or body / candle_range < 0.4:
+            continue
+
+        is_bullish = closes[i] > opens[i]
+        ob_top = float(max(opens[i], closes[i]))
+        ob_bot = float(min(opens[i], closes[i]))
+
+        # Sonraki mumlar bu bölgeyi test etti mi?
+        tested = False
+        for j in range(i + 1, min(i + 20, len(df))):
+            if is_bullish and lows[j] <= opens[i]:
+                tested = True; break
+            if not is_bullish and highs[j] >= opens[i]:
+                tested = True; break
+
+        # Fiyat bölgeyi tamamen geçmiş mi?
+        valid = True
+        if is_bullish and last_price < ob_bot:
+            valid = False
+        if not is_bullish and last_price > ob_top:
+            valid = False
+
+        if valid:
+            zones.append({
+                "type":      "BULL_OB" if is_bullish else "BEAR_OB",
+                "upper":     ob_top,
+                "lower":     ob_bot,
+                "mid":       float((ob_top + ob_bot) / 2),
+                "volume":    float(volumes[i]),
+                "vol_ratio": float(volumes[i] / avg_vol),
+                "tested":    tested,
+                "bar":       i,
+                "source":    "VOB",
+            })
+
+    zones.sort(key=lambda z: z["volume"], reverse=True)
+    return zones[:10]
+
+
+def filter_by_direction(levels: List[dict], direction: str, current_price: float) -> List[dict]:
+    """LONG → fiyat üstündeki seviyeleri yakından uzağa, SHORT → tersine."""
+    if direction == "LONG":
+        filtered = [l for l in levels if l["price"] > current_price * 1.002]
+        filtered.sort(key=lambda l: l["price"])
+    else:
+        filtered = [l for l in levels if l["price"] < current_price * 0.998]
+        filtered.sort(key=lambda l: l["price"], reverse=True)
+    return filtered
+
+
+def prioritize_levels(levels: List[dict]) -> List[dict]:
+    """Her seviyeye TF ağırlığı × kaynak bonusu × güç skoru ata, yüksekten düşüğe sırala."""
+    for lv in levels:
+        tf_w  = _TF_WEIGHT.get(lv.get("tf", "5m"), 1.0)
+        src_b = _SOURCE_BONUS.get(lv.get("source", "SWING"), 1.0)
+        lv["priority"] = tf_w * src_b * lv.get("strength", 1)
+    levels.sort(key=lambda l: l["priority"], reverse=True)
+    return levels
+
+
+def clamp_by_higher_tf(tps: List[dict], higher_tf_levels: List[dict], direction: str) -> List[dict]:
+    """Üst TF bariyerini aşan TP'leri bariyer seviyesine çek."""
+    if not higher_tf_levels:
+        return tps
+    barrier = higher_tf_levels[0]
+    result = []
+    for tp in tps:
+        if direction == "LONG" and tp["price"] > barrier["price"]:
+            result.append({**tp, "price": barrier["price"] * 0.997, "clamped": True})
+        elif direction == "SHORT" and tp["price"] < barrier["price"]:
+            result.append({**tp, "price": barrier["price"] * 1.003, "clamped": True})
+        else:
+            result.append(tp)
+    return result
+
+
+def build_final_tp(
+    candidates: List[dict],
+    atr: float,
+    current_price: float,
+    direction: str,
+    stop_price: float,
+) -> List[dict]:
+    """Min mesafe filtresi uygula, max 4 TP seç; fallback → ATR."""
+    min_gap        = atr * 0.6
+    min_from_entry = atr * 0.3
+    risk = abs(current_price - stop_price) if stop_price and abs(current_price - stop_price) > 1e-9 else atr * 1.5
+
+    final: List[dict] = []
+    last_price = current_price
+
+    for c in candidates:
+        if abs(c["price"] - current_price) < min_from_entry:
+            continue
+        if final and abs(c["price"] - last_price) < min_gap:
+            if c.get("priority", 0) > final[-1].get("priority", 0):
+                final[-1] = c
+                last_price = c["price"]
+            continue
+        final.append(c)
+        last_price = c["price"]
+        if len(final) >= 4:
+            break
+
+    # Yapısal seviye bulunamadıysa ATR fallback
+    if not final:
+        sign = 1 if direction == "LONG" else -1
+        final.append({"price": current_price + sign * atr * 1.5, "source": "ATR_FALLBACK", "priority": 0.1, "tf": "na"})
+        final.append({"price": current_price + sign * atr * 3.0, "source": "ATR_FALLBACK", "priority": 0.1, "tf": "na"})
+
+    return [
+        {
+            **tp,
+            "label":        f"TP{i + 1}",
+            "rr":           round(abs(tp["price"] - current_price) / risk, 2) if risk > 0 else 0.0,
+            "distance_pct": f"{(tp['price'] - current_price) / current_price * 100:+.2f}%",
+        }
+        for i, tp in enumerate(final)
+    ]
+
+
+def snap_to_structure(tps: List[dict], all_levels: List[dict], atr: float) -> List[dict]:
+    """ATR fallback TP'yi yakındaki yapısal seviyeye yapıştır."""
+    snap_radius = atr * 1.2
+    result = []
+    for tp in tps:
+        nearest = next(
+            (l for l in all_levels
+             if l.get("source") != "ATR_FALLBACK" and abs(l["price"] - tp["price"]) < snap_radius),
+            None,
+        )
+        if nearest:
+            result.append({**tp, "price": nearest["price"], "source": nearest["source"], "snapped": True})
+        else:
+            result.append(tp)
+    return result
+
+
+def compute_stop_loss_structural(
+    direction: str, current_price: float, df: pd.DataFrame, atr: float
+) -> float:
+    """Swing high/low bazlı yapısal stop loss; ATR sadece küçük buffer için."""
+    swings = find_swings(df, left_bars=3, right_bars=3)
+    if direction == "LONG":
+        recent_lows = sorted(
+            [s for s in swings if s["type"] == "SUPPORT" and s["price"] < current_price],
+            key=lambda s: s["price"], reverse=True,
+        )
+        if recent_lows:
+            return round(recent_lows[0]["price"] - atr * 0.2, 8)
+        return round(current_price - atr * 1.5, 8)
+    else:
+        recent_highs = sorted(
+            [s for s in swings if s["type"] == "RESISTANCE" and s["price"] > current_price],
+            key=lambda s: s["price"],
+        )
+        if recent_highs:
+            return round(recent_highs[0]["price"] + atr * 0.2, 8)
+        return round(current_price + atr * 1.5, 8)
+
+
+def build_tp_matrix_structural(
+    direction: str,
+    current_price: float,
+    klines_by_tf: Dict[str, pd.DataFrame],
+    atr: float,
+) -> Tuple[List[dict], float]:
+    """
+    5 adımlı yapısal TP pipeline.
+    Returns: (tp_list, structural_stop_price)
+    tp_list elemanları: {price, source, tf, label, rr, distance_pct, hit, hit_at, snapped}
+    """
+    TFs = ["5m", "15m", "1h", "4h"]
+    all_levels: List[dict] = []
+
+    # ── ADIM 1: Tüm TF'lerden yapısal seviyeleri topla ───────────────────────
+    for tf in TFs:
+        df_tf = klines_by_tf.get(tf)
+        if df_tf is None or len(df_tf) < 30:
+            continue
+
+        swings = find_swings(df_tf)
+        for s in swings:
+            all_levels.append({**s, "tf": tf})
+
+        eq = find_equal_levels(swings)
+        for e in eq:
+            all_levels.append({**e, "tf": tf})
+
+        fvgs = find_fvg(df_tf)
+        for f in fvgs:
+            is_target = (direction == "LONG"  and f["type"] == "BEAR_FVG") or \
+                        (direction == "SHORT" and f["type"] == "BULL_FVG")
+            if is_target:
+                all_levels.append({"price": f["mid"], "tf": tf, "source": "FVG", "type": f["type"]})
+
+    # ── ADIM 2: VOB seviyeleri (1h ve 4h) ────────────────────────────────────
+    for tf in ["1h", "4h"]:
+        df_tf = klines_by_tf.get(tf)
+        if df_tf is None or len(df_tf) < 30:
+            continue
+        zones = find_vob(df_tf)
+        for z in zones:
+            is_target = (direction == "LONG"  and z["type"] == "BEAR_OB") or \
+                        (direction == "SHORT" and z["type"] == "BULL_OB")
+            if is_target:
+                all_levels.append({"price": z["mid"], "tf": tf, "source": "VOB", "vol_ratio": z["vol_ratio"]})
+
+    # ── Yapısal stop loss ─────────────────────────────────────────────────────
+    primary_df = (klines_by_tf.get("15m") or klines_by_tf.get("5m")
+                  or (next(iter(klines_by_tf.values()), None) if klines_by_tf else None))
+    if primary_df is not None:
+        stop_price = compute_stop_loss_structural(direction, current_price, primary_df, atr)
+    else:
+        sign = -1 if direction == "LONG" else 1
+        stop_price = round(current_price + sign * atr * 1.5, 8)
+
+    # ── ADIM 3: Yöne göre filtrele ────────────────────────────────────────────
+    filtered = filter_by_direction(all_levels, direction, current_price)
+
+    # ── ADIM 4: TF hiyerarşisi ile önceliklendir ─────────────────────────────
+    prioritized = prioritize_levels(filtered)
+
+    # ── ADIM 4b: Üst TF bariyerine göre kısıtla ──────────────────────────────
+    higher_tf_barriers = [l for l in prioritized if _TF_WEIGHT.get(l.get("tf", "5m"), 0) >= 3.0]
+    clamped = clamp_by_higher_tf(prioritized, higher_tf_barriers, direction)
+
+    # ── ADIM 5: Min mesafe filtresi + final seçim ────────────────────────────
+    tps = build_final_tp(clamped, atr, current_price, direction, stop_price)
+
+    # ── ADIM 5b: Yapısal seviyeye snap ───────────────────────────────────────
+    tps = snap_to_structure(tps, all_levels, atr)
+
+    tp_list = [
+        {
+            "price":        round(float(tp["price"]), 8),
+            "source":       tp.get("source", "SWING"),
+            "tf":           tp.get("tf", "multi"),
+            "label":        tp["label"],
+            "rr":           float(tp.get("rr", 0)),
+            "distance_pct": tp.get("distance_pct", "0%"),
+            "hit":          False,
+            "hit_at":       None,
+            "snapped":      tp.get("snapped", False),
+        }
+        for tp in tps
+    ]
+    return tp_list, stop_price
+
+
 def derive_levels(df: pd.DataFrame, side: str) -> Tuple[float, float, float, float, float, float]:
     row = df.iloc[-1]
     atr = float(row["atr"])
     close = float(row["close"])
 
-    # Use recent swing structure for stop placement
-    recent = df.tail(30)
-    swing_low = float(recent["low"].min())
-    swing_high = float(recent["high"].max())
-
     if side == "LONG":
         entry_low = close - atr * 0.30
         entry_high = close + atr * 0.10
-        # Stop below swing low, capped at 2.5×ATR below entry_high
-        stop = max(swing_low - atr * 0.15, entry_high - atr * 2.5)
-        risk = entry_high - stop          # actual R per unit
-        tp1 = entry_high + risk * 1.5    # 1.5R
-        tp2 = entry_high + risk * 2.5    # 2.5R
-        tp3 = entry_high + risk * 4.0    # 4R
+        # Structural stop: swing low - buffer, capped at 2.5×ATR below entry
+        struct_stop = compute_stop_loss_structural("LONG", close, df, atr)
+        stop = max(struct_stop, entry_high - atr * 2.5)
+        risk = entry_high - stop
+        tp1 = entry_high + risk * 1.5
+        tp2 = entry_high + risk * 2.5
+        tp3 = entry_high + risk * 4.0
     else:
         entry_low = close - atr * 0.10
         entry_high = close + atr * 0.30
-        # Stop above swing high, capped at 2.5×ATR above entry_low
-        stop = min(swing_high + atr * 0.15, entry_low + atr * 2.5)
-        risk = stop - entry_low           # actual R per unit
-        tp1 = entry_low - risk * 1.5     # 1.5R
-        tp2 = entry_low - risk * 2.5     # 2.5R
-        tp3 = entry_low - risk * 4.0     # 4R
+        # Structural stop: swing high + buffer, capped at 2.5×ATR above entry
+        struct_stop = compute_stop_loss_structural("SHORT", close, df, atr)
+        stop = min(struct_stop, entry_low + atr * 2.5)
+        risk = stop - entry_low
+        tp1 = entry_low - risk * 1.5
+        tp2 = entry_low - risk * 2.5
+        tp3 = entry_low - risk * 4.0
 
     return (
         round(entry_low, 6),

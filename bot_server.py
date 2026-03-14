@@ -32,6 +32,7 @@ from orderbook_engine import OrderbookEngine         # noqa: E402
 from portfolio_manager import PortfolioManager       # noqa: E402
 from scoring import (                                # noqa: E402
     build_signal,
+    build_tp_matrix_structural,
     classify_structure,
     compute_indicators,
     derive_levels,
@@ -633,30 +634,51 @@ def _compute_signals_sync(cfg: dict, engine: dict) -> dict:
                 })
                 print(f"[momentum] {item.symbol} vol×{vol_mult:.1f} chg{price_chg:+.1f}%")
 
-    # ── Multi-TF TP matrix for top signals ───────────────────────────────────
-    upper_tfs = _get_upper_tfs(timeframe, 2)
+    # ── Structural TP matrix for top signals (multi-TF klines) ───────────────
+    _STRUCTURAL_TFS = ["5m", "15m", "1h", "4h"]
     top_enriched = []
     for score, signal, df in top:
-        tp_matrix: dict = {
-            timeframe: {
-                "tp1": signal.tp1, "tp2": signal.tp2, "tp3": signal.tp3,
-                "stop": signal.stop_loss,
-            }
-        }
-        for utf in upper_tfs:
+        klines_by_tf: dict = {}
+        for tf_s in _STRUCTURAL_TFS:
             try:
-                udata = scanner.fetch_first_available(signal.symbol, timeframe=utf, limit=200)
+                udata = scanner.fetch_first_available(signal.symbol, timeframe=tf_s, limit=300)
                 if udata is not None and not udata.df.empty:
                     udf = compute_indicators(udata.df)
                     if len(udf) >= 30:
-                        _, _, _, ut1, ut2, ut3 = derive_levels(udf, signal.side)
-                        tp_matrix[utf] = {"tp1": ut1, "tp2": ut2, "tp3": ut3}
+                        klines_by_tf[tf_s] = udf
             except Exception as e:
-                print(f"[tp_matrix] {signal.symbol} {utf}: {e}")
+                print(f"[tp_matrix] {signal.symbol} {tf_s}: {e}")
+
+        current_price = float(df.iloc[-1]["close"])
+        # ATR: klines_by_tf'den al (df ham olduğundan "atr" sütunu olmayabilir)
+        _atr_df = (klines_by_tf.get(signal.timeframe)
+                   or klines_by_tf.get("15m")
+                   or klines_by_tf.get("5m")
+                   or (next(iter(klines_by_tf.values()), None) if klines_by_tf else None))
+        if _atr_df is not None:
+            atr_val = float(_atr_df.iloc[-1]["atr"])
+        else:
+            # Fallback: stop-loss mesafesinden tahmin
+            atr_val = abs(signal.entry_high - signal.stop_loss) / 1.5 or 1.0
+        try:
+            tp_list, struct_stop = build_tp_matrix_structural(
+                signal.side, current_price, klines_by_tf, atr_val
+            )
+        except Exception as e:
+            print(f"[tp_matrix_structural] {signal.symbol}: {e}")
+            tp_list = [
+                {"price": signal.tp1, "source": "ATR_FALLBACK", "tf": timeframe, "label": "TP1",
+                 "rr": 1.5, "distance_pct": "N/A", "hit": False, "hit_at": None, "snapped": False},
+                {"price": signal.tp2, "source": "ATR_FALLBACK", "tf": timeframe, "label": "TP2",
+                 "rr": 2.5, "distance_pct": "N/A", "hit": False, "hit_at": None, "snapped": False},
+                {"price": signal.tp3, "source": "ATR_FALLBACK", "tf": timeframe, "label": "TP3",
+                 "rr": 4.0, "distance_pct": "N/A", "hit": False, "hit_at": None, "snapped": False},
+            ]
+            struct_stop = signal.stop_loss
+        tp_matrix = {"tps": tp_list, "stop": struct_stop}
 
         # Entry distance from current price to entry zone midpoint
         entry_mid = (signal.entry_low + signal.entry_high) / 2
-        current_price = float(df.iloc[-1]["close"])
         entry_dist_pct = round(abs(current_price - entry_mid) / entry_mid * 100, 2) if entry_mid else 0
 
         top_enriched.append((score, signal, df, tp_matrix, entry_dist_pct))
