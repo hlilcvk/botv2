@@ -63,42 +63,44 @@ body{background:var(--bg);color:var(--t1);font-family:'Inter',sans-serif;min-hei
 
 /* ── Pinboard ── */
 .pinboard{background:var(--card);border-bottom:1px solid var(--border);
-  padding:10px 20px;position:sticky;top:57px;z-index:99;flex-shrink:0}
+  padding:8px 20px 10px;position:sticky;top:57px;z-index:99;flex-shrink:0}
+.pb-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:7px}
 .pb-label{font-family:'IBM Plex Mono',monospace;font-size:.6rem;font-weight:700;
-  color:var(--t4);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px}
-.pb-strip{display:flex;flex-wrap:wrap;gap:8px;padding-bottom:2px}
+  color:var(--t4);text-transform:uppercase;letter-spacing:1.5px}
+.pb-filter{display:flex;align-items:center;gap:6px}
+.pb-filter-btn{font-family:'IBM Plex Mono',monospace;font-size:.58rem;font-weight:700;
+  padding:2px 8px;border-radius:5px;border:1px solid var(--border);
+  background:none;color:var(--t3);cursor:pointer;transition:all .15s}
+.pb-filter-btn:hover{border-color:var(--border2);color:var(--t1)}
+.pb-filter-btn.active{background:var(--ybg);border-color:var(--yellow);color:var(--ydark)}
+.pb-strip{display:flex;flex-wrap:wrap;gap:6px}
 
-/* card */
-.pb-card{display:flex;flex-direction:column;gap:0;width:170px;flex-shrink:0;
-  background:var(--surface);border:1px solid var(--border);border-radius:9px;
+/* card — yatay dikdörtgen */
+.pb-card{display:flex;flex-direction:column;width:200px;flex-shrink:0;
+  background:var(--surface);border:1px solid var(--border);border-radius:8px;
   cursor:pointer;transition:border-color .15s,box-shadow .15s;overflow:hidden}
 .pb-card:hover{border-color:var(--border2);box-shadow:0 2px 10px rgba(0,0,0,.07)}
 .pb-card.long{border-color:rgba(14,203,129,.35);background:rgba(14,203,129,.03)}
-.pb-card.short{border-color:rgba(246,70,93,.3); background:rgba(246,70,93,.03)}
-.pb-card-top{display:flex;align-items:center;justify-content:space-between;
-  padding:7px 9px 4px}
-.pb-sym{font-weight:800;font-size:.82rem;color:var(--t1);letter-spacing:.3px}
-.pb-side{font-size:.58rem;font-weight:700;padding:2px 6px;border-radius:4px}
-.pb-side.long {background:var(--gbg); color:var(--green)}
-.pb-side.short{background:var(--rbg); color:var(--red)}
-.pb-card-mid{display:flex;align-items:center;gap:5px;padding:0 9px 4px;flex-wrap:wrap}
-.pb-score{font-family:'IBM Plex Mono',monospace;font-size:.68rem;color:var(--ydark);font-weight:800}
-.pb-tf{font-family:'IBM Plex Mono',monospace;font-size:.58rem;color:var(--t4);
-  background:var(--surface);border:1px solid var(--border);border-radius:3px;padding:1px 4px}
-.pb-exbadge{font-family:'IBM Plex Mono',monospace;font-size:.55rem;color:var(--t3);
-  background:var(--hover);border:1px solid var(--border);border-radius:3px;padding:1px 4px}
-.pb-card-levels{border-top:1px solid var(--border);padding:5px 9px;
-  display:grid;grid-template-columns:1fr 1fr;gap:3px 8px}
-.pbl{display:flex;flex-direction:column}
-.pbl-k{font-family:'IBM Plex Mono',monospace;font-size:.5rem;color:var(--t4);
-  text-transform:uppercase;letter-spacing:.5px;margin-bottom:1px}
-.pbl-v{font-family:'IBM Plex Mono',monospace;font-size:.66rem;font-weight:700}
-.pbl-v.g{color:var(--green)}.pbl-v.r{color:var(--red)}.pbl-v.y{color:var(--ydark)}
-.pb-card-px{border-top:1px solid var(--border);padding:4px 9px;
-  display:flex;align-items:center;justify-content:space-between}
-.pb-live-px{font-family:'IBM Plex Mono',monospace;font-size:.66rem;font-weight:700;color:var(--t1)}
-.pb-live-chg{font-family:'IBM Plex Mono',monospace;font-size:.6rem;font-weight:600}
-.pb-live-chg.pos{color:var(--green)}.pb-live-chg.neg{color:var(--red)}
+.pb-card.short{border-color:rgba(246,70,93,.3);background:rgba(246,70,93,.03)}
+/* Row 1: symbol + side + score + tf + exch */
+.pb-row1{display:flex;align-items:center;gap:5px;padding:6px 8px 4px;flex-wrap:nowrap;overflow:hidden}
+.pb-sym{font-weight:800;font-size:.8rem;color:var(--t1);letter-spacing:.2px;flex-shrink:0}
+.pb-side{font-size:.55rem;font-weight:700;padding:1px 5px;border-radius:4px;flex-shrink:0}
+.pb-side.long{background:var(--gbg);color:var(--green)}
+.pb-side.short{background:var(--rbg);color:var(--red)}
+.pb-score{font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--ydark);font-weight:800;flex-shrink:0}
+.pb-tf{font-family:'IBM Plex Mono',monospace;font-size:.54rem;color:var(--t4);
+  background:var(--hover);border:1px solid var(--border);border-radius:3px;padding:1px 3px;flex-shrink:0}
+.pb-exbadge{font-family:'IBM Plex Mono',monospace;font-size:.52rem;color:var(--t3);
+  background:var(--hover);border:1px solid var(--border);border-radius:3px;padding:1px 3px;
+  flex-shrink:0;margin-left:auto}
+/* Row 2: entry | sl | tp1 | price */
+.pb-row2{display:flex;align-items:center;border-top:1px solid var(--border);padding:4px 8px;gap:0}
+.pb-cell{display:flex;flex-direction:column;flex:1;min-width:0}
+.pb-cell+.pb-cell{border-left:1px solid var(--border);padding-left:6px}
+.pb-ck{font-family:'IBM Plex Mono',monospace;font-size:.46rem;color:var(--t4);text-transform:uppercase;margin-bottom:1px}
+.pb-cv{font-family:'IBM Plex Mono',monospace;font-size:.62rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pb-cv.g{color:var(--green)}.pb-cv.r{color:var(--red)}.pb-cv.y{color:var(--ydark)}
 
 .pb-empty{font-family:'IBM Plex Mono',monospace;font-size:.72rem;color:var(--t4);
   font-style:italic;padding:4px 0;align-self:center}
@@ -331,7 +333,16 @@ td{padding:11px 14px;vertical-align:middle;white-space:nowrap}
 
   <!-- ── Bot Pinboard ── -->
   <div class="pinboard">
-    <div class="pb-label">Bot Sinyalleri</div>
+    <div class="pb-hdr">
+      <div class="pb-label">Bot Sinyalleri</div>
+      <div class="pb-filter">
+        <span style="font-family:'IBM Plex Mono',monospace;font-size:.55rem;color:var(--t4)">Göster:</span>
+        <button class="pb-filter-btn active" id="pf2"  onclick="setSigFilter(2)">Son 2s</button>
+        <button class="pb-filter-btn"        id="pf6"  onclick="setSigFilter(6)">6s</button>
+        <button class="pb-filter-btn"        id="pf24" onclick="setSigFilter(24)">24s</button>
+        <button class="pb-filter-btn"        id="pf0"  onclick="setSigFilter(0)">Tümü</button>
+      </div>
+    </div>
     <div class="pb-strip" id="pbStrip">
       <div class="pb-empty">Henüz sinyal yok...</div>
     </div>
@@ -352,9 +363,13 @@ td{padding:11px 14px;vertical-align:middle;white-space:nowrap}
             <th>Skor</th>
             <th>Piyasa</th>
             <th>Borsa</th>
+            <th>Giriş Zonu</th>
+            <th>Stop Loss</th>
+            <th>TP1</th>
             <th>Canlı Fiyat</th>
             <th>24s Değişim</th>
             <th>24s Hacim</th>
+            <th>TF</th>
             <th>Sinyal Zamanı</th>
           </tr>
         </thead>
@@ -518,6 +533,21 @@ var _binPerpWS  = null;   // Binance perp websocket
 var _chartObj   = null;
 var _chartSeries = null;
 var _mktSym = null, _mktEx = null, _mktType = null, _curTf = '15m';
+var _sigHours = 2; // filtre: son kaç saat (0 = tümü)
+
+function setSigFilter(h) {
+  _sigHours = h;
+  document.querySelectorAll('.pb-filter-btn').forEach(function(b){ b.classList.remove('active'); });
+  var ids = {0:'pf0',2:'pf2',6:'pf6',24:'pf24'};
+  if(ids[h]) document.getElementById(ids[h]).classList.add('active');
+  renderAll();
+}
+
+function filterSigs(sigs) {
+  if(!_sigHours) return sigs;
+  var cutoff = Date.now() - _sigHours * 3600000;
+  return sigs.filter(function(s){ return (s.ts||0) >= cutoff; });
+}
 
 /* ═══════════════════════════════════════
    BOT WEBSOCKET
@@ -714,60 +744,49 @@ function renderAll() {
 
 function renderPinboard() {
   var strip = document.getElementById('pbStrip');
-  var sigs  = Array.from(signals.values()).sort(function(a,b){return (b.ts||0)-(a.ts||0);});
+  var all   = Array.from(signals.values()).sort(function(a,b){return (b.ts||0)-(a.ts||0);});
+  var sigs  = filterSigs(all).slice(0, 14); // maks 14 kart
   if(!sigs.length) {
-    strip.innerHTML = '<div class="pb-empty">Henüz sinyal yok...</div>';
+    var msg = all.length ? 'Son '+_sigHours+'s içinde sinyal yok — Geçmiş\'e bakın' : 'Henüz sinyal yok...';
+    strip.innerHTML = '<div class="pb-empty">'+msg+'</div>';
     return;
   }
   strip.innerHTML = sigs.map(function(s) {
     var sc      = s.side==='LONG'?'long':'short';
     var sym     = (s.symbol||'').replace('/USDT','');
     var score   = s.opportunity_score||0;
-    var sc_c    = score>=70?'var(--green)':score>=50?'var(--ydark)':'var(--t3)';
+    var sc_c    = score>=70?'g':score>=50?'y':'';
     var cacheKey= s.symbol+'_'+s.exchange;
     var px      = livePx.get(cacheKey);
     var mtype   = mktTypes.get(cacheKey)||'';
-    var exLbl   = (s.exchange||'').toUpperCase()+(mtype?' · '+mtype:'');
+    var exLbl   = (s.exchange||'binance').slice(0,3).toUpperCase()+(mtype?'·'+mtype:'');
+    var entry   = s.entry_low ? fmt(s.entry_low) : '—';
+    var pxStr   = px ? fmtPrice(px.price) : '—';
+    var chgStr  = px ? (px.change>=0?'+':'')+px.change.toFixed(1)+'%' : '—';
+    var chgCls  = px ? (px.change>=0?'g':'r') : '';
 
-    // entry zone
-    var entryLow = fmt(s.entry_low), entryHi = fmt(s.entry_high);
-    var entryStr = (s.entry_low&&s.entry_high) ? entryLow+'–'+entryHi : (fmt(s.entry_low)||'—');
-
-    var pxHtml = '';
-    if(px) {
-      var chgCls = px.change>=0?'pos':'neg';
-      var chgPfx = px.change>=0?'+':'';
-      pxHtml =
-        '<div class="pb-card-px">'+
-          '<span class="pb-live-px">'+fmtPrice(px.price)+'</span>'+
-          '<span class="pb-live-chg '+chgCls+'">'+chgPfx+px.change.toFixed(2)+'%</span>'+
-        '</div>';
-    }
-
-    return '<div class="pb-card '+sc+'" onclick="openBotDrawer(\''+s._key+'\')">'+
-      '<div class="pb-card-top">'+
+    return '<div class="pb-card '+sc+'" onclick="openSignalModal(\''+s._key+'\')">'+
+      '<div class="pb-row1">'+
         '<span class="pb-sym">'+sym+'</span>'+
         '<span class="pb-side '+sc+'">'+s.side+'</span>'+
-      '</div>'+
-      '<div class="pb-card-mid">'+
-        '<span class="pb-score" style="color:'+sc_c+'">⚡'+score+'</span>'+
+        '<span class="pb-score">⚡'+score+'</span>'+
         '<span class="pb-tf">'+(s.timeframe||'—')+'</span>'+
         '<span class="pb-exbadge">'+exLbl+'</span>'+
       '</div>'+
-      '<div class="pb-card-levels">'+
-        '<div class="pbl"><div class="pbl-k">Giriş</div><div class="pbl-v y">'+entryStr+'</div></div>'+
-        '<div class="pbl"><div class="pbl-k">Stop</div><div class="pbl-v r">'+fmt(s.stop_loss)+'</div></div>'+
-        '<div class="pbl"><div class="pbl-k">TP1</div><div class="pbl-v g">'+fmt(s.tp1)+'</div></div>'+
-        '<div class="pbl"><div class="pbl-k">TP2</div><div class="pbl-v g">'+fmt(s.tp2)+'</div></div>'+
+      '<div class="pb-row2">'+
+        '<div class="pb-cell"><div class="pb-ck">Giriş</div><div class="pb-cv y">'+entry+'</div></div>'+
+        '<div class="pb-cell"><div class="pb-ck">Stop</div><div class="pb-cv r">'+fmt(s.stop_loss)+'</div></div>'+
+        '<div class="pb-cell"><div class="pb-ck">TP1</div><div class="pb-cv g">'+fmt(s.tp1)+'</div></div>'+
+        '<div class="pb-cell"><div class="pb-ck">Fiyat</div><div class="pb-cv '+chgCls+'">'+pxStr+'</div></div>'+
+        '<div class="pb-cell"><div class="pb-ck">24s</div><div class="pb-cv '+chgCls+'">'+chgStr+'</div></div>'+
       '</div>'+
-      pxHtml+
     '</div>';
   }).join('');
 }
 
 function renderTable() {
   var tbody = document.getElementById('tblBody');
-  var sigs  = Array.from(signals.values()).sort(function(a,b){return (b.ts||0)-(a.ts||0);});
+  var sigs  = filterSigs(Array.from(signals.values()).sort(function(a,b){return (b.ts||0)-(a.ts||0);}));
   if(!sigs.length) {
     tbody.innerHTML = '<tr class="empty-row"><td colspan="9">Henüz sinyal yok...</td></tr>';
     return;
@@ -811,9 +830,15 @@ function buildRow(s) {
     '</td>'+
     '<td>'+mBadge+'</td>'+
     '<td><span class="badge exch">'+(s.exchange||'').toUpperCase()+'</span></td>'+
+    '<td class="mono" style="color:var(--ydark);font-size:.75rem">'+
+      (s.entry_low&&s.entry_high ? fmt(s.entry_low)+'–'+fmt(s.entry_high) : fmt(s.entry_low))+
+    '</td>'+
+    '<td class="mono" style="color:var(--red);font-size:.75rem">'+fmt(s.stop_loss)+'</td>'+
+    '<td class="mono" style="color:var(--green);font-size:.75rem">'+fmt(s.tp1)+'</td>'+
     '<td><span class="live-price">'+priceStr+'</span></td>'+
     '<td>'+chgStr+'</td>'+
     '<td class="vol-cell">'+volStr+'</td>'+
+    '<td class="mono dim" style="font-size:.7rem">'+(s.timeframe||'—')+'</td>'+
     '<td class="mono dim">'+(s.time||'—')+'</td>'+
   '</tr>';
 }
