@@ -95,6 +95,11 @@ function createMockElement() {
     };
 }
 
+// Node.js global'e addEventListener/removeEventListener ekle (browser uyumluluğu)
+global.addEventListener = () => {};
+global.removeEventListener = () => {};
+global.dispatchEvent = () => {};
+
 global.window = global;
 global.self = global;
 global.document = {
