@@ -17,18 +17,32 @@ const wss = new NodeWebSocket.Server({ server, path: '/ws' });
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '../public')));
 
+// Root URL -> platform.html yönlendirmesi
+app.get('/', (req, res) => res.redirect('/platform.html'));
+
 const PORT = process.env.PORT || 3200;
 const REDIS_URL = process.env.REDIS_URL || 'redis://127.0.0.1:6379';
 
-// Redis with error handling — sunucu çökmemeli
+// Redis with error handling — sunucu çökmemeli, Redis opsiyonel
+let redisReady = false;
 const redis = new Redis(REDIS_URL, {
-    retryStrategy: (times) => Math.min(times * 500, 3000),
-    maxRetriesPerRequest: 3,
-    lazyConnect: true
+    retryStrategy: (times) => {
+        if (times > 10) return null; // 10 denemeden sonra dur, spam yapma
+        return Math.min(times * 1000, 5000);
+    },
+    maxRetriesPerRequest: null, // Komutlar hata fırlatmasın, beklesin
+    lazyConnect: true,
+    enableOfflineQueue: true
 });
-redis.on('error', (err) => console.error('[Redis]', err.message));
-redis.on('connect', () => console.log('[Redis] Connected'));
-redis.connect().catch(() => console.warn('[Redis] Initial connection failed, will retry'));
+redis.on('error', (err) => {
+    if (redisReady) console.error('[Redis] Connection lost:', err.message);
+    redisReady = false;
+});
+redis.on('connect', () => {
+    redisReady = true;
+    console.log('[Redis] Connected');
+});
+redis.connect().catch(() => console.warn('[Redis] Not available — system will work without persistence'));
 
 let bot = null;
 
@@ -201,9 +215,12 @@ async function persistToRedis() {
             }
         }).filter(Boolean);
 
-        await redis.set('cde_z_tokens', JSON.stringify(safeTokens), 'EX', 3600);
+        // Redis varsa kaydet, yoksa atla
+        if (redisReady) {
+            await redis.set('cde_z_tokens', JSON.stringify(safeTokens), 'EX', 3600);
+        }
 
-        // Broadcast to all connected UI clients
+        // Broadcast to all connected UI clients (Redis olmasa da çalışır)
         broadcast({ type: 'tokens_update', tokens: safeTokens });
     } catch (e) {
         // Sessizce devam et, sunucuyu çökertme
