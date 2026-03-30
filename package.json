@@ -1,0 +1,17 @@
+{
+  "name": "cde-monolith",
+  "version": "2.0.0",
+  "main": "engine/core.js",
+  "scripts": {
+    "start": "node engine/core.js",
+    "dev": "node --watch engine/core.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "ioredis": "^5.4.1",
+    "ws": "^8.17.0",
+    "node-telegram-bot-api": "^0.66.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5"
+  }
+}
