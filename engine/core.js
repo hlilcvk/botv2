@@ -159,7 +159,9 @@ global.LightweightCharts = null;
 console.log('[Engine] Loading core intelligence from extracted_bot.js...');
 
 try {
-    const botCode = fs.readFileSync(path.join(__dirname, 'extracted_bot.js'), 'utf-8');
+    let botCode = fs.readFileSync(path.join(__dirname, 'extracted_bot.js'), 'utf-8');
+    // Z, const ile tanımlı — eval scope'undan global'e taşı
+    botCode += '\nglobal.Z = Z;\n';
     eval(botCode);
     console.log('[Engine] Core intelligence loaded successfully!');
 } catch (e) {
@@ -168,13 +170,14 @@ try {
     process.exit(1);
 }
 
-// Verify Z object exists after eval
-if (!global.Z || !global.Z.tokens) {
-    console.error('[Engine] FATAL: Z state object not initialized after bot load');
+// Z objesi eval'dan global'e geçti mi?
+if (!global.Z) {
+    console.error('[Engine] FATAL: Z state object not found after bot load');
     process.exit(1);
 }
 
-console.log(`[Engine] Z.tokens initialized with ${global.Z.tokens.length} symbols`);
+// Z.tokens init() async fonksiyonuyla doluyor, başlangıçta boş olması normal
+console.log(`[Engine] Z state loaded. tokens array length: ${global.Z.tokens.length} (init() async olarak dolduracak)`);
 
 // =============================================================
 // 4. REDIS STATE PERSISTENCE
